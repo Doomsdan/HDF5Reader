@@ -1,7 +1,7 @@
 # Virtuelle Umgebung (passe den Namen an, falls dein Ordner anders heißt)
 .venv/
 env/
-hdf5_gui_py3/anfragen_log
+hdf5_gui_py3/anfragen_log.db
 
 # Python Cache-Dateien
 __pycache__/
