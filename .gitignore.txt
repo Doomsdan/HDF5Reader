@@ -1,0 +1,7 @@
+# Virtuelle Umgebung (passe den Namen an, falls dein Ordner anders heißt)
+.venv/
+env/
+
+# Python Cache-Dateien
+__pycache__/
+*.pyc
