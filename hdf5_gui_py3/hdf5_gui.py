@@ -46,17 +46,24 @@ class TransferList(QtWidgets.QWidget):
 
         # Linke Liste: Verfügbare Parameter
         self.list_available = QtWidgets.QListWidget()
+        self.list_available.setMinimumWidth(180)
         self.list_available.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.list_available.addItems(available_vars)
 
         # Rechte Liste: Ausgewählte Parameter
         self.list_selected = QtWidgets.QListWidget()
+        self.list_selected.setMinimumWidth(180)
         self.list_selected.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.list_selected.setObjectName("SelectedList")
 
         # Buttons in der Mitte
         vbox_buttons = QtWidgets.QVBoxLayout()
-        self.btn_add = QtWidgets.QPushButton(">>")
-        self.btn_remove = QtWidgets.QPushButton("<<")
+        self.btn_add = QtWidgets.QPushButton()
+        self.btn_add.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowRight))
+        self.btn_add.setObjectName("TransferButton")
+        self.btn_remove = QtWidgets.QPushButton()
+        self.btn_remove.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowLeft))
+        self.btn_remove.setObjectName("TransferButton")
 
         vbox_buttons.addStretch()
         vbox_buttons.addWidget(self.btn_add)
@@ -69,6 +76,9 @@ class TransferList(QtWidgets.QWidget):
 
         self.btn_add.clicked.connect(self.add_item)
         self.btn_remove.clicked.connect(self.remove_item)
+        
+        self.list_available.itemDoubleClicked.connect(self.add_item)
+        self.list_selected.itemDoubleClicked.connect(self.remove_item)
 
     def add_item(self):
         for item in self.list_available.selectedItems():
@@ -183,7 +193,9 @@ class Window(QTabWidget):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
         self.setWindowTitle('HDF5 GUI')
+        self.resize(1200, 750)
         self.setup_database()
+        self.set_style()
 
         self.current_kunde_filter = ""
         self.current_datum_filter = ""
@@ -219,6 +231,177 @@ class Window(QTabWidget):
         ''')
         self.conn.commit()
 
+    def set_style(self):
+        style = """
+        QWidget {
+            font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            font-size: 10pt;
+            background-color: #f4f6f9;
+            color: #2c3e50;
+        }
+        QTabWidget::pane {
+            border: 1px solid #cfd9e5;
+            background: #ffffff;
+            border-radius: 6px;
+        }
+        QTabBar::tab {
+            background: #e2e8f0;
+            border: 1px solid #cfd9e5;
+            padding: 8px 20px;
+            min-width: 150px;
+            margin-right: 2px;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            color: #64748b;
+        }
+        QTabBar::tab:selected {
+            background: #ffffff;
+            border-bottom-color: #ffffff;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        QTabBar::tab:hover:!selected {
+            background: #cbd5e1;
+        }
+        QPushButton {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 6px 14px;
+            color: #0f172a;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background-color: #f1f5f9;
+            border-color: #94a3b8;
+        }
+        QPushButton:pressed {
+            background-color: #e2e8f0;
+        }
+        QLineEdit, QComboBox {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 5px 8px;
+            background: #ffffff;
+            selection-background-color: #3b82f6;
+        }
+        QLineEdit:focus, QComboBox:focus {
+            border: 1px solid #3b82f6;
+        }
+        QListWidget, QTableWidget, QCalendarWidget {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #ffffff;
+            alternate-background-color: #f8fafc;
+        }
+        QTextBrowser {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background-color: #1e293b;
+            color: #f8fafc;
+            font-family: "Consolas", "Courier New", monospace;
+            padding: 5px;
+        }
+        QTableWidget::item:selected, QListWidget::item:selected {
+            background-color: #1e293b;
+            color: white;
+        }
+        QHeaderView::section {
+            background-color: #f8fafc;
+            padding: 4px 8px;
+            border: 1px solid #e2e8f0;
+            font-weight: bold;
+            color: #475569;
+        }
+        #SelectedList {
+            background-color: #eff6ff;
+            border: 2px solid #3b82f6;
+        }
+        #DateDisplay {
+            font-weight: bold;
+            color: #1e293b;
+            background-color: #e2e8f0;
+            border: 1px solid #94a3b8;
+            padding: 4px;
+        }
+        QCalendarWidget QAbstractItemView {
+            selection-background-color: #1e293b;
+            selection-color: #ffffff;
+            outline: 0px;
+        }
+        QScrollBar:vertical {
+            border: none;
+            background: #f1f5f9;
+            width: 12px;
+            border-radius: 6px;
+            margin: 0px;
+        }
+        QScrollBar::handle:vertical {
+            background: #cbd5e1;
+            min-height: 20px;
+            border-radius: 6px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background: #94a3b8;
+        }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            width: 0px;
+            height: 0px;
+            border: none;
+            background: none;
+        }
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            background: none;
+        }
+        QScrollBar:horizontal {
+            border: none;
+            background: #f1f5f9;
+            height: 12px;
+            border-radius: 6px;
+            margin: 0px;
+        }
+        QScrollBar::handle:horizontal {
+            background: #cbd5e1;
+            min-width: 20px;
+            border-radius: 6px;
+        }
+        QScrollBar::handle:horizontal:hover {
+            background: #94a3b8;
+        }
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+            width: 0px;
+            height: 0px;
+            border: none;
+            background: none;
+        }
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+            background: none;
+        }
+        #RunButton {
+            background-color: #3b82f6;
+            color: #ffffff;
+            font-weight: bold;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+        }
+        #RunButton:hover {
+            background-color: #2563eb;
+        }
+        #RunButton:pressed {
+            background-color: #1d4ed8;
+        }
+        #TransferButton {
+            padding: 4px;
+            min-width: 35px;
+            margin: 0px 4px;
+        }
+        QLabel {
+            font-weight: bold;
+        }
+        """
+        self.setStyleSheet(style)
+
     def home(self):
         self.main_layout = QtWidgets.QHBoxLayout()
         self.grid = QGridLayout()
@@ -228,6 +411,7 @@ class Window(QTabWidget):
         self.working_dir_lab = QLabel('Working Directory:')
         self.working_dir_line = QLineEdit()
         self.working_dir_btn = QPushButton('Browse')
+        self.working_dir_btn.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DirOpenIcon))
         self.working_dir_btn.clicked.connect(lambda: self.get_input_dir(_input=True))
         self.grid.addWidget(self.working_dir_lab, i, 0)
         self.grid.addWidget(self.working_dir_line, i, 1, 1, 11)
@@ -242,6 +426,7 @@ class Window(QTabWidget):
         self.hdf5_line = QLineEdit()
         self.hdf5_line.setText(lconf.hdf5_filename)
         self.hdf5_btn = QPushButton('Browse')
+        self.hdf5_btn.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileIcon))
         self.hdf5_btn.clicked.connect(self.get_hdf5_file)
         self.grid.addWidget(self.hdf5_lab, i, 0)
         self.grid.addWidget(self.hdf5_line, i, 1, 1, 11)
@@ -255,6 +440,7 @@ class Window(QTabWidget):
         self.customer_lab = QLabel('Kunde:')
         self.customer_combo = QComboBox()
         self.customer_combo.setEditable(True)
+        self.customer_combo.lineEdit().setPlaceholderText("Kunde suchen oder neu eingeben...")
         self.customer_btn = QPushButton('Addressbuch')
         self.customer_btn.clicked.connect(self.open_addressbook_anfrage)
         self.grid.addWidget(self.customer_lab, i, 0)
@@ -266,16 +452,35 @@ class Window(QTabWidget):
         i += 1
 
         self.duration_lab = QLabel('Duration:')
+        
         self.start_lab = QLabel('Start date:')
+        self.start_date_display = QLineEdit()
+        self.start_date_display.setReadOnly(True)
+        self.start_date_display.setObjectName("DateDisplay")
+        
         self.end_lab = QLabel('End date:')
+        self.end_date_display = QLineEdit()
+        self.end_date_display.setReadOnly(True)
+        self.end_date_display.setObjectName("DateDisplay")
+        
+        start_layout = QtWidgets.QHBoxLayout()
+        start_layout.addWidget(self.start_lab)
+        start_layout.addWidget(self.start_date_display)
+        
+        end_layout = QtWidgets.QHBoxLayout()
+        end_layout.addWidget(self.end_lab)
+        end_layout.addWidget(self.end_date_display)
+        
         self.cal_start = QtWidgets.QCalendarWidget()
+        self.cal_start.setMaximumSize(300, 200)
         self.cal_end = QtWidgets.QCalendarWidget()
+        self.cal_end.setMaximumSize(300, 200)
 
         self.grid.addWidget(self.duration_lab, i, 0)
-        self.grid.addWidget(self.start_lab, i, 1)
-        self.grid.addWidget(self.end_lab, i, 10)
-        self.grid.addWidget(self.cal_start, i+1, 1)
-        self.grid.addWidget(self.cal_end, i+1, 10 )
+        self.grid.addLayout(start_layout, i, 1, 1, 6)
+        self.grid.addLayout(end_layout, i, 7, 1, 6)
+        self.grid.addWidget(self.cal_start, i+1, 1, 1, 6)
+        self.grid.addWidget(self.cal_end, i+1, 7, 1, 6)
 
        # self.connect(self.cal_start, QtCore.SIGNAL('selectionChanged()'), self.date_changed)
         self.cal_start.selectionChanged.connect(self.date_changed)
@@ -283,6 +488,7 @@ class Window(QTabWidget):
         self.duration_lab.setToolTip(str('Select the duration'))
         self.start_lab.setToolTip(str('Select Start date'))
         self.end_lab.setToolTip(str('Select End date'))
+        self.date_changed()
         i += 2
 
         self.var_lab = QLabel('Parameters:')
@@ -299,12 +505,14 @@ class Window(QTabWidget):
         self.console_lab = QLabel('Console')
         self.grid.addWidget(self.console_lab, i, 0)
         self.grid.addWidget(self.console, i, 1, 1, 12)
-        XStream.stdout().messageWritten.connect(self.console.insertPlainText)
-        XStream.stderr().messageWritten.connect(self.console.insertPlainText)
+        XStream.stdout().messageWritten.connect(self.append_to_console)
+        XStream.stderr().messageWritten.connect(self.append_to_console)
         i += 1
 
         self.run_lab = QLabel(' ')
-        self.run_btn = QPushButton('Run')
+        self.run_btn = QPushButton(' Run')
+        self.run_btn.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay))
+        self.run_btn.setObjectName("RunButton")
         self.run_btn.clicked.connect(lambda checked: self.run(save_to_db=True))
         self.grid.addWidget(self.run_lab, i, 0)
         self.grid.addWidget(self.run_btn, i, 1, 1, 12)
@@ -316,6 +524,7 @@ class Window(QTabWidget):
     def history_ui(self):
         layout = QVBoxLayout()
         self.history_table = QTableWidget()
+        self.history_table.setAlternatingRowColors(True)
         self.history_table.setColumnCount(8)
         self.history_table.setHorizontalHeaderLabels(['ID', 'Kunde', 'Zeitpunkt', 'Start', 'Ende', 'Parameter', 'Laden', 'Ausführen'])
         self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
@@ -323,6 +532,7 @@ class Window(QTabWidget):
         
         btn_layout = QtWidgets.QHBoxLayout()
         self.refresh_btn = QPushButton('Aktualisieren')
+        self.refresh_btn.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_BrowserReload))
         self.refresh_btn.clicked.connect(self.load_history)
         
         self.btn_filter_kunde = QPushButton('Kunden Filter')
@@ -425,12 +635,20 @@ class Window(QTabWidget):
         except Exception as e:
             print("Fehler beim Laden der Kunden aus der Datenbank:", e)
 
+    def append_to_console(self, text):
+        self.console.insertPlainText(text)
+        self.console.moveCursor(QtGui.QTextCursor.End)
+
     def date_changed(self):
         try:
             date_start = self.cal_start.selectedDate()
             self.pydate_start = date_start.toPyDate()
             date_end = self.cal_end.selectedDate()
             self.pydate_end = date_end.toPyDate()
+            
+            self.start_date_display.setText(self.pydate_start.strftime("%Y-%m-%d"))
+            self.end_date_display.setText(self.pydate_end.strftime("%Y-%m-%d"))
+            
             assert self.pydate_start
             assert self.pydate_end
             self.console.clear()
@@ -480,95 +698,100 @@ class Window(QTabWidget):
         self.run(save_to_db=False)
 
     def run(self, save_to_db=True):
-        self.console.clear()
-        self.allesgut = True
-        print("Running...")
-
-        self.hdf5_file = self.hdf5_line.text()
+        QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         try:
-            assert self.hdf5_file and os.path.isfile(self.hdf5_file)
-        except:
-            print("Invalid or missing HDF5 file")
-            self.allesgut = False
-
-        try:
-            assert self.working_dir
-            os.chdir(self.working_dir)
-        except:
-            print("Invalid Working directory")
-            self.allesgut = False
-
-        try:
-            assert self.pydate_start
-            assert self.pydate_end
-        except:
-            print("invalid duration")
-            self.allesgut = False
-
-        self.var_list = self.transfer_list.get_selected_variables()
-        if not self.var_list:
-            print("WARNING: var list empty")
-            self.allesgut = False
-
-        kunde = self.customer_combo.currentText().strip()
-        if not kunde:
-            print("Bitte einen Kunden angeben.")
-            self.allesgut = False
-        elif self.allesgut:
-            # Pfad und Dateinamen automatisch generieren
-            now = datetime.datetime.now()
-            year_str = now.strftime("%Y")
-            time_str = now.strftime("%Y%m%d%H%M%S")
-            safe_kunde = kunde.replace(" ", "")
-            filename = f"{safe_kunde}_{time_str}.txt"
-            
-            export_dir = os.path.join(self.working_dir, "Export", year_str)
+            self.console.clear()
+            self.allesgut = True
+            print("Running...")
+            QApplication.processEvents()
+    
+            self.hdf5_file = self.hdf5_line.text()
             try:
-                os.makedirs(export_dir, exist_ok=True)
-                self.out_dir = os.path.join(export_dir, filename)
-            except Exception as e:
-                print("Fehler beim Erstellen des Export-Ordners:", e)
+                assert self.hdf5_file and os.path.isfile(self.hdf5_file)
+            except:
+                print("Invalid or missing HDF5 file")
                 self.allesgut = False
-
-        # Zeitschritt hart auf die höchste Auflösung (1 Minute) setzen
-        self.del_t = 1
-
-        if self.allesgut == True:
-            if save_to_db:
-                try:
-                    cursor = self.conn.cursor()
-                    cursor.execute('INSERT OR IGNORE INTO Kunden (name) VALUES (?)', (kunde,))
-                    cursor.execute('SELECT id FROM Kunden WHERE name = ?', (kunde,))
-                    kunden_id = cursor.fetchone()[0]
-                    
-                    # Neuen Kunden direkt in die laufende Dropdown-Liste aufnehmen
-                    if self.customer_combo.findText(kunde) == -1:
-                        self.customer_combo.addItem(kunde)
-
-                    jetzt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    param_str = ",".join(self.var_list)
-                    
-                    cursor.execute('''
-                        INSERT INTO Anfragen (kunden_id, zeitpunkt, start_date, end_date, parameter)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (kunden_id, jetzt, str(self.pydate_start), str(self.pydate_end), param_str))
-                    self.conn.commit()
-                    print("Anfrage in Datenbank gespeichert.")
-                    self.load_history()
-                except Exception as e:
-                    print("Fehler beim Speichern in der Datenbank:", e)
-
+    
             try:
-                #from lhglib.contrib.meteo import lauchaecker_hdf5_tools as lht
-                import lauchaecker_hdf5_tools as lht
-                lht.hdf52txt(start=str(self.pydate_start) + "T00:00:00", end=str(self.pydate_end)+"T00:00:00",
-                             varpath=self.var_list,outfile=str(self.out_dir), del_t=self.del_t, hdf5=self.hdf5_file)
-                print("Finished")
-            except Exception as ex:
-                print(ex)
-                traceback.print_exc()
-        else:
-            print("Please check inputs")
+                assert self.working_dir
+                os.chdir(self.working_dir)
+            except:
+                print("Invalid Working directory")
+                self.allesgut = False
+    
+            try:
+                assert self.pydate_start
+                assert self.pydate_end
+            except:
+                print("invalid duration")
+                self.allesgut = False
+    
+            self.var_list = self.transfer_list.get_selected_variables()
+            if not self.var_list:
+                print("WARNING: var list empty")
+                self.allesgut = False
+    
+            kunde = self.customer_combo.currentText().strip()
+            if not kunde:
+                print("Bitte einen Kunden angeben.")
+                self.allesgut = False
+            elif self.allesgut:
+                # Pfad und Dateinamen automatisch generieren
+                now = datetime.datetime.now()
+                year_str = now.strftime("%Y")
+                time_str = now.strftime("%Y%m%d%H%M%S")
+                safe_kunde = kunde.replace(" ", "")
+                filename = f"{safe_kunde}_{time_str}.txt"
+                
+                export_dir = os.path.join(self.working_dir, "Export", year_str)
+                try:
+                    os.makedirs(export_dir, exist_ok=True)
+                    self.out_dir = os.path.join(export_dir, filename)
+                except Exception as e:
+                    print("Fehler beim Erstellen des Export-Ordners:", e)
+                    self.allesgut = False
+    
+            # Zeitschritt hart auf die höchste Auflösung (1 Minute) setzen
+            self.del_t = 1
+    
+            if self.allesgut == True:
+                if save_to_db:
+                    try:
+                        cursor = self.conn.cursor()
+                        cursor.execute('INSERT OR IGNORE INTO Kunden (name) VALUES (?)', (kunde,))
+                        cursor.execute('SELECT id FROM Kunden WHERE name = ?', (kunde,))
+                        kunden_id = cursor.fetchone()[0]
+                        
+                        # Neuen Kunden direkt in die laufende Dropdown-Liste aufnehmen
+                        if self.customer_combo.findText(kunde) == -1:
+                            self.customer_combo.addItem(kunde)
+    
+                        jetzt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        param_str = ",".join(self.var_list)
+                        
+                        cursor.execute('''
+                            INSERT INTO Anfragen (kunden_id, zeitpunkt, start_date, end_date, parameter)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (kunden_id, jetzt, str(self.pydate_start), str(self.pydate_end), param_str))
+                        self.conn.commit()
+                        print("Anfrage in Datenbank gespeichert.")
+                        self.load_history()
+                    except Exception as e:
+                        print("Fehler beim Speichern in der Datenbank:", e)
+    
+                try:
+                    #from lhglib.contrib.meteo import lauchaecker_hdf5_tools as lht
+                    import lauchaecker_hdf5_tools as lht
+                    lht.hdf52txt(start=str(self.pydate_start) + "T00:00:00", end=str(self.pydate_end)+"T00:00:00",
+                                 varpath=self.var_list,outfile=str(self.out_dir), del_t=self.del_t, hdf5=self.hdf5_file)
+                    print("Finished")
+                except Exception as ex:
+                    print(ex)
+                    traceback.print_exc()
+            else:
+                print("Please check inputs")
+        finally:
+            QApplication.restoreOverrideCursor()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
