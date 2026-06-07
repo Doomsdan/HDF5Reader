@@ -90,11 +90,103 @@ class TransferList(QtWidgets.QWidget):
             for item in items:
                 self.list_selected.addItem(self.list_available.takeItem(self.list_available.row(item)))
 
+class CustomerCompleter(QtWidgets.QCompleter):
+    def complete(self, *args, **kwargs):
+        if len(self.completionPrefix()) < 3:
+            self.popup().hide()
+            return
+        super(CustomerCompleter, self).complete(*args, **kwargs)
+
+class AddressBookDialog(QDialog):
+    def __init__(self, parent=None, kunden=[]):
+        super(AddressBookDialog, self).__init__(parent)
+        self.setWindowTitle("Addressbuch Filter")
+        self.resize(350, 450)
+        self.layout = QVBoxLayout(self)
+
+        self.search_line = QLineEdit()
+        self.search_line.setPlaceholderText("Kunde suchen...")
+        self.layout.addWidget(self.search_line)
+
+        self.list_widget = QtWidgets.QListWidget()
+        self.list_widget.addItems(kunden)
+        self.layout.addWidget(self.list_widget)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        self.btn_clear = QPushButton("Filter löschen")
+        self.btn_ok = QPushButton("Bestätigen")
+        btn_layout.addWidget(self.btn_clear)
+        btn_layout.addWidget(self.btn_ok)
+        self.layout.addLayout(btn_layout)
+
+        self.search_line.textChanged.connect(self.filter_list)
+        self.btn_ok.clicked.connect(self.accept)
+        self.btn_clear.clicked.connect(self.clear_and_accept)
+        self.list_widget.itemDoubleClicked.connect(self.accept)
+        
+        self.selected_customer = ""
+
+    def filter_list(self, text):
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setHidden(text.lower() not in item.text().lower())
+
+    def accept(self):
+        selected_items = self.list_widget.selectedItems()
+        if selected_items and not selected_items[0].isHidden():
+            self.selected_customer = selected_items[0].text()
+        else:
+            self.selected_customer = self.search_line.text()
+        super(AddressBookDialog, self).accept()
+
+    def clear_and_accept(self):
+        self.selected_customer = ""
+        super(AddressBookDialog, self).accept()
+
+    def get_selected_customer(self):
+        return self.selected_customer
+
+class CalendarDialog(QDialog):
+    def __init__(self, parent=None):
+        super(CalendarDialog, self).__init__(parent)
+        self.setWindowTitle("Datum Filter")
+        self.layout = QVBoxLayout(self)
+
+        self.calendar = QCalendarWidget()
+        self.layout.addWidget(self.calendar)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        self.btn_clear = QPushButton("Filter löschen")
+        self.btn_ok = QPushButton("Bestätigen")
+        btn_layout.addWidget(self.btn_clear)
+        btn_layout.addWidget(self.btn_ok)
+        self.layout.addLayout(btn_layout)
+
+        self.btn_ok.clicked.connect(self.accept)
+        self.btn_clear.clicked.connect(self.clear_and_accept)
+        self.calendar.activated.connect(self.accept)
+
+        self.selected_date = ""
+
+    def accept(self):
+        self.selected_date = self.calendar.selectedDate().toString("yyyy-MM-dd")
+        super(CalendarDialog, self).accept()
+
+    def clear_and_accept(self):
+        self.selected_date = ""
+        super(CalendarDialog, self).accept()
+
+    def get_selected_date(self):
+        return self.selected_date
+
 class Window(QTabWidget):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
         self.setWindowTitle('HDF5 GUI')
         self.setup_database()
+
+        self.current_kunde_filter = ""
+        self.current_datum_filter = ""
 
         self.tab_home = QWidget()
         self.tab_history = QWidget()
@@ -163,8 +255,11 @@ class Window(QTabWidget):
         self.customer_lab = QLabel('Kunde:')
         self.customer_combo = QComboBox()
         self.customer_combo.setEditable(True)
+        self.customer_btn = QPushButton('Addressbuch')
+        self.customer_btn.clicked.connect(self.open_addressbook_anfrage)
         self.grid.addWidget(self.customer_lab, i, 0)
-        self.grid.addWidget(self.customer_combo, i, 1, 1, 11)
+        self.grid.addWidget(self.customer_combo, i, 1, 1, 10)
+        self.grid.addWidget(self.customer_btn, i, 11, 1, 2)
         self.customer_lab.setToolTip('Name des Kunden auswählen oder neu eingeben')
         self.customer_combo.setToolTip('Name des Kunden auswählen oder neu eingeben')
         self.load_customers()
@@ -230,7 +325,15 @@ class Window(QTabWidget):
         self.refresh_btn = QPushButton('Aktualisieren')
         self.refresh_btn.clicked.connect(self.load_history)
         
+        self.btn_filter_kunde = QPushButton('Kunden Filter')
+        self.btn_filter_kunde.clicked.connect(self.open_kunde_filter)
+
+        self.btn_filter_datum = QPushButton('Datum Filter')
+        self.btn_filter_datum.clicked.connect(self.open_datum_filter)
+
         btn_layout.addWidget(self.refresh_btn)
+        btn_layout.addWidget(self.btn_filter_kunde)
+        btn_layout.addWidget(self.btn_filter_datum)
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
         layout.addWidget(self.history_table)
@@ -240,12 +343,22 @@ class Window(QTabWidget):
     def load_history(self):
         try:
             cursor = self.conn.cursor()
-            cursor.execute('''
+            query = '''
                 SELECT Anfragen.id, Kunden.name, Anfragen.zeitpunkt, Anfragen.start_date, Anfragen.end_date, Anfragen.parameter
                 FROM Anfragen
                 JOIN Kunden ON Anfragen.kunden_id = Kunden.id
-                ORDER BY Anfragen.zeitpunkt DESC
-            ''')
+                WHERE 1=1
+            '''
+            params = []
+            if self.current_kunde_filter:
+                query += ' AND Kunden.name LIKE ?'
+                params.append(f'%{self.current_kunde_filter}%')
+            if self.current_datum_filter:
+                query += ' AND Anfragen.zeitpunkt LIKE ?'
+                params.append(f'{self.current_datum_filter}%')
+            query += ' ORDER BY Anfragen.zeitpunkt DESC'
+            
+            cursor.execute(query, params)
             rows = cursor.fetchall()
             self.history_table.setRowCount(len(rows))
             for row_idx, row_data in enumerate(rows):
@@ -262,6 +375,40 @@ class Window(QTabWidget):
         except Exception as e:
             print("Fehler beim Laden der Historie:", e)
 
+    def open_kunde_filter(self):
+        kunden = []
+        for i in range(self.customer_combo.count()):
+            kunden.append(self.customer_combo.itemText(i))
+        dlg = AddressBookDialog(self, kunden)
+        if dlg.exec_():
+            self.current_kunde_filter = dlg.get_selected_customer()
+            if self.current_kunde_filter:
+                self.btn_filter_kunde.setText(f"Kunde: {self.current_kunde_filter}")
+            else:
+                self.btn_filter_kunde.setText("Kunden Filter")
+            self.load_history()
+
+    def open_datum_filter(self):
+        dlg = CalendarDialog(self)
+        if dlg.exec_():
+            self.current_datum_filter = dlg.get_selected_date()
+            if self.current_datum_filter:
+                self.btn_filter_datum.setText(f"Datum: {self.current_datum_filter}")
+            else:
+                self.btn_filter_datum.setText("Datum Filter")
+            self.load_history()
+
+    def open_addressbook_anfrage(self):
+        kunden = []
+        for i in range(self.customer_combo.count()):
+            kunden.append(self.customer_combo.itemText(i))
+        dlg = AddressBookDialog(self, kunden)
+        dlg.setWindowTitle("Addressbuch")
+        if dlg.exec_():
+            selected = dlg.get_selected_customer()
+            if selected:
+                self.customer_combo.setCurrentText(selected)
+
     def load_customers(self):
         self.customer_combo.clear()
         try:
@@ -270,6 +417,11 @@ class Window(QTabWidget):
             kunden = cursor.fetchall()
             for kunde in kunden:
                 self.customer_combo.addItem(kunde[0])
+                
+            completer = CustomerCompleter(self.customer_combo.model(), self)
+            completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+            completer.setFilterMode(QtCore.Qt.MatchContains)
+            self.customer_combo.setCompleter(completer)
         except Exception as e:
             print("Fehler beim Laden der Kunden aus der Datenbank:", e)
 
