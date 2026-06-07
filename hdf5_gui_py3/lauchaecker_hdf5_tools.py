@@ -610,7 +610,11 @@ def hdf52df(start=None, stop=None, varnames=None,
         stop=datetime.datetime.strptime(stop,forma)
         #stop = str2datetime(stop)
 
-    meta = read_metadata(meta_xls_filename)
+    try:
+        meta = read_metadata(meta_xls_filename)
+    except Exception:
+        meta = None
+        convert = False
 
     variables = {}
     with open_hdf5(hdf5_filename, "r") as h5f:
@@ -687,7 +691,7 @@ def hdf52df(start=None, stop=None, varnames=None,
                                                            varname),
                                      varname + "_data_raw")
             values = data_node[start_i:stop_i]
-            if convert:
+            if convert and meta is not None:
                 f = meta[meta['varname'] == varname]['conversion_factor']
                 # Check if conversion factors did not change for changing
                 # parameter names of the same meassurement
@@ -1295,10 +1299,14 @@ def _read_nth_timestamp(nth, hdf5_filename, meta_xls_filename=lconf.meta_xls_fil
         end : dtr
             timestamp of latest data
     """
-    metadata = read_metadata(meta_xls_filename)
-    metadata.index = metadata.varname
-    # time_path = metadata.ix["timestamps"].path
-    time_path = metadata.loc["timestamps"].path
+    try:
+        metadata = read_metadata(meta_xls_filename)
+        metadata.index = metadata.varname
+        # time_path = metadata.ix["timestamps"].path
+        time_path = metadata.loc["timestamps"].path
+    except Exception:
+        time_path = "/lauchaecker/min_01/timestamps"
+        
     with open_hdf5(hdf5_filename) as h5f:
         time_node = h5f.get_node(time_path)
         nth_time = time_node[nth]
@@ -1398,10 +1406,16 @@ def data_reaches(varpath='all',
 
     """
     if varpath == 'all':
-        varpath = np.unique(read_metadata(meta_xls_filename)['varname'])
-        varpath = list(varpath .astype('str'))
-        for ivar in ['CaseTemp', 'timestamps']:
-            varpath.remove(ivar)
+        try:
+            varpath = np.unique(read_metadata(meta_xls_filename)['varname'])
+            varpath = list(varpath .astype('str'))
+            for ivar in ['CaseTemp', 'timestamps']:
+                if ivar in varpath:
+                    varpath.remove(ivar)
+        except Exception:
+            with open_hdf5(hdf5) as h5f:
+                groups = h5f.walkGroups("/lauchaecker/min_01/data")
+                varpath = [path_basename(group._v_pathname) for group in groups][1:]
     end = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
     var, date = read_hdf5('2009-08-26T00:01:00', end, varpath, del_t=1,
                           hdf5=hdf5, typ_=typ_)

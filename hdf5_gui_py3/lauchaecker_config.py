@@ -8,15 +8,20 @@ lhglib.contrib.meteo.fetch_loggerfile
 """
 
 import os
+import sys
 
-# windows usage
-if os.name == 'nt':
-    #root = r"J:\website_generation\Data"
-    root = r"P:\wetterstation\04_Data"
-    #root=r'C:\Users\Jessica\Desktop\Pythonstuff\hdf5gui'
-# linux usage
+if '--demo-mode' in sys.argv:
+    # Basisordner automatisch auf das Verzeichnis dieses Skripts setzen
+    root = os.path.dirname(os.path.abspath(__file__))
 else:
-    root = r"/media/data/p_mount/wetterstation/04_Data"
+    # windows usage
+    if os.name == 'nt':
+        #root = r"J:\website_generation\Data"
+        root = r"P:\wetterstation\04_Data"
+        #root=r'C:\Users\Jessica\Desktop\Pythonstuff\hdf5gui'
+    # linux usage
+    else:
+        root = r"/media/data/p_mount/wetterstation/04_Data"
     
 server = "http://129.69.227.222:31415"
 

@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QComboBox, QCalendarWidget, QGridLayout, QVBoxLayout
 import traceback
 import sqlite3
 import datetime
+import lauchaecker_config as lconf
 
 class XStream(QObject):
     _stdout = None
@@ -80,6 +81,15 @@ class TransferList(QtWidgets.QWidget):
     def get_selected_variables(self):
         return [self.list_selected.item(i).text() for i in range(self.list_selected.count())]
 
+    def set_selected_variables(self, var_list):
+        while self.list_selected.count() > 0:
+            item = self.list_selected.takeItem(0)
+            self.list_available.addItem(item)
+        for var in var_list:
+            items = self.list_available.findItems(var, QtCore.Qt.MatchExactly)
+            for item in items:
+                self.list_selected.addItem(self.list_available.takeItem(self.list_available.row(item)))
+
 class Window(QTabWidget):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
@@ -136,17 +146,18 @@ class Window(QTabWidget):
         self.working_dir = self.working_dir_line.text()
         i += 1
 
-        self.out_dir_lab = QLabel('Output text file:')
-        self.out_dir_line = QLineEdit()
-        self.out_dir_btn = QPushButton('Browse')
-        self.out_dir_btn.clicked.connect(lambda: self.get_output_dir(_input=True))
-        self.grid.addWidget(self.out_dir_lab, i, 0)
-        self.grid.addWidget(self.out_dir_line, i, 1, 1, 11)
-        self.grid.addWidget(self.out_dir_btn, i, 12)
-        self.out_dir_lab.setToolTip(str('Full path to the Working Directory.'))
-        self.out_dir_line.setToolTip(str('Full path to the Working Directory.'))
-        self.out_dir_btn.setToolTip(str('Browse to Working Directory.'))
-        self.out_dir = self.out_dir_line.text()
+        self.hdf5_lab = QLabel('HDF5 File:')
+        self.hdf5_line = QLineEdit()
+        self.hdf5_line.setText(lconf.hdf5_filename)
+        self.hdf5_btn = QPushButton('Browse')
+        self.hdf5_btn.clicked.connect(self.get_hdf5_file)
+        self.grid.addWidget(self.hdf5_lab, i, 0)
+        self.grid.addWidget(self.hdf5_line, i, 1, 1, 11)
+        self.grid.addWidget(self.hdf5_btn, i, 12)
+        self.hdf5_lab.setToolTip('Select the HDF5 input file.')
+        self.hdf5_line.setToolTip('Full path to the HDF5 input file.')
+        self.hdf5_btn.setToolTip('Browse for HDF5 file.')
+        self.hdf5_file = self.hdf5_line.text()
         i += 1
 
         self.customer_lab = QLabel('Kunde:')
@@ -199,7 +210,7 @@ class Window(QTabWidget):
 
         self.run_lab = QLabel(' ')
         self.run_btn = QPushButton('Run')
-        self.run_btn.clicked.connect(self.run)
+        self.run_btn.clicked.connect(lambda checked: self.run(save_to_db=True))
         self.grid.addWidget(self.run_lab, i, 0)
         self.grid.addWidget(self.run_btn, i, 1, 1, 12)
 
@@ -210,14 +221,18 @@ class Window(QTabWidget):
     def history_ui(self):
         layout = QVBoxLayout()
         self.history_table = QTableWidget()
-        self.history_table.setColumnCount(6)
-        self.history_table.setHorizontalHeaderLabels(['ID', 'Kunde', 'Zeitpunkt', 'Start', 'Ende', 'Parameter'])
+        self.history_table.setColumnCount(8)
+        self.history_table.setHorizontalHeaderLabels(['ID', 'Kunde', 'Zeitpunkt', 'Start', 'Ende', 'Parameter', 'Laden', 'Ausführen'])
         self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.history_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
         
+        btn_layout = QtWidgets.QHBoxLayout()
         self.refresh_btn = QPushButton('Aktualisieren')
         self.refresh_btn.clicked.connect(self.load_history)
         
-        layout.addWidget(self.refresh_btn)
+        btn_layout.addWidget(self.refresh_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
         layout.addWidget(self.history_table)
         self.tab_history.setLayout(layout)
         self.load_history()
@@ -236,6 +251,14 @@ class Window(QTabWidget):
             for row_idx, row_data in enumerate(rows):
                 for col_idx, col_data in enumerate(row_data):
                     self.history_table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
+
+                btn_load = QPushButton('Laden')
+                btn_load.clicked.connect(lambda checked, d=row_data: self.action_load_to_tab(d))
+                self.history_table.setCellWidget(row_idx, 6, btn_load)
+                
+                btn_rerun = QPushButton('Ausführen')
+                btn_rerun.clicked.connect(lambda checked, d=row_data: self.action_rerun_history(d))
+                self.history_table.setCellWidget(row_idx, 7, btn_rerun)
         except Exception as e:
             print("Fehler beim Laden der Historie:", e)
 
@@ -249,7 +272,6 @@ class Window(QTabWidget):
                 self.customer_combo.addItem(kunde[0])
         except Exception as e:
             print("Fehler beim Laden der Kunden aus der Datenbank:", e)
-
 
     def date_changed(self):
         try:
@@ -275,32 +297,53 @@ class Window(QTabWidget):
         except:
             print("Please specify a valid Working directory")
 
-    def get_output_dir(self, _input=True):
+    def get_hdf5_file(self):
         try:
-            if _input:
-                dlg = QFileDialog()
-                dlg.setFileMode(QFileDialog.FileMode())
-                if dlg.exec_():
-                    self.out_dir = dlg.selectedFiles()[0]
-                    self.out_dir_line.setText(self.out_dir)
-        except:
-            print("Please specify a valid Output file")
+            file_name, _ = QFileDialog.getOpenFileName(self, "Select HDF5 File", "", "HDF5 Files (*.h5 *.hdf5);;All Files (*)")
+            if file_name:
+                self.hdf5_file = file_name
+                self.hdf5_line.setText(self.hdf5_file)
+                print("HDF5 File set to:", self.hdf5_file)
+        except Exception as e:
+            print("Error selecting HDF5 file:", e)
 
-    def run(self):
+    def load_entry_to_ui(self, row_data):
+        kunde = str(row_data[1])
+        start_str = str(row_data[3])
+        end_str = str(row_data[4])
+        params_str = str(row_data[5])
+        
+        self.customer_combo.setCurrentText(kunde)
+        self.cal_start.setSelectedDate(QtCore.QDate.fromString(start_str, "yyyy-MM-dd"))
+        self.cal_end.setSelectedDate(QtCore.QDate.fromString(end_str, "yyyy-MM-dd"))
+        self.transfer_list.set_selected_variables(params_str.split(","))
+        return True
+
+    def action_load_to_tab(self, row_data):
+        self.load_entry_to_ui(row_data)
+        self.setCurrentIndex(0)
+
+    def action_rerun_history(self, row_data):
+        self.load_entry_to_ui(row_data)
+        self.run(save_to_db=False)
+
+    def run(self, save_to_db=True):
         self.console.clear()
         self.allesgut = True
         print("Running...")
+
+        self.hdf5_file = self.hdf5_line.text()
+        try:
+            assert self.hdf5_file and os.path.isfile(self.hdf5_file)
+        except:
+            print("Invalid or missing HDF5 file")
+            self.allesgut = False
+
         try:
             assert self.working_dir
             os.chdir(self.working_dir)
         except:
             print("Invalid Working directory")
-            self.allesgut = False
-
-        try:
-            assert self.out_dir
-        except:
-            print("Invalid Output directory")
             self.allesgut = False
 
         try:
@@ -319,39 +362,55 @@ class Window(QTabWidget):
         if not kunde:
             print("Bitte einen Kunden angeben.")
             self.allesgut = False
+        elif self.allesgut:
+            # Pfad und Dateinamen automatisch generieren
+            now = datetime.datetime.now()
+            year_str = now.strftime("%Y")
+            time_str = now.strftime("%Y%m%d%H%M%S")
+            safe_kunde = kunde.replace(" ", "")
+            filename = f"{safe_kunde}_{time_str}.txt"
+            
+            export_dir = os.path.join(self.working_dir, "Export", year_str)
+            try:
+                os.makedirs(export_dir, exist_ok=True)
+                self.out_dir = os.path.join(export_dir, filename)
+            except Exception as e:
+                print("Fehler beim Erstellen des Export-Ordners:", e)
+                self.allesgut = False
 
         # Zeitschritt hart auf die höchste Auflösung (1 Minute) setzen
         self.del_t = 1
 
         if self.allesgut == True:
-            try:
-                cursor = self.conn.cursor()
-                cursor.execute('INSERT OR IGNORE INTO Kunden (name) VALUES (?)', (kunde,))
-                cursor.execute('SELECT id FROM Kunden WHERE name = ?', (kunde,))
-                kunden_id = cursor.fetchone()[0]
-                
-                # Neuen Kunden direkt in die laufende Dropdown-Liste aufnehmen
-                if self.customer_combo.findText(kunde) == -1:
-                    self.customer_combo.addItem(kunde)
+            if save_to_db:
+                try:
+                    cursor = self.conn.cursor()
+                    cursor.execute('INSERT OR IGNORE INTO Kunden (name) VALUES (?)', (kunde,))
+                    cursor.execute('SELECT id FROM Kunden WHERE name = ?', (kunde,))
+                    kunden_id = cursor.fetchone()[0]
+                    
+                    # Neuen Kunden direkt in die laufende Dropdown-Liste aufnehmen
+                    if self.customer_combo.findText(kunde) == -1:
+                        self.customer_combo.addItem(kunde)
 
-                jetzt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                param_str = ",".join(self.var_list)
-                
-                cursor.execute('''
-                    INSERT INTO Anfragen (kunden_id, zeitpunkt, start_date, end_date, parameter)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (kunden_id, jetzt, str(self.pydate_start), str(self.pydate_end), param_str))
-                self.conn.commit()
-                print("Anfrage in Datenbank gespeichert.")
-                self.load_history()
-            except Exception as e:
-                print("Fehler beim Speichern in der Datenbank:", e)
+                    jetzt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    param_str = ",".join(self.var_list)
+                    
+                    cursor.execute('''
+                        INSERT INTO Anfragen (kunden_id, zeitpunkt, start_date, end_date, parameter)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (kunden_id, jetzt, str(self.pydate_start), str(self.pydate_end), param_str))
+                    self.conn.commit()
+                    print("Anfrage in Datenbank gespeichert.")
+                    self.load_history()
+                except Exception as e:
+                    print("Fehler beim Speichern in der Datenbank:", e)
 
             try:
                 #from lhglib.contrib.meteo import lauchaecker_hdf5_tools as lht
                 import lauchaecker_hdf5_tools as lht
                 lht.hdf52txt(start=str(self.pydate_start) + "T00:00:00", end=str(self.pydate_end)+"T00:00:00",
-                             varpath=self.var_list,outfile=str(self.out_dir), del_t=self.del_t)
+                             varpath=self.var_list,outfile=str(self.out_dir), del_t=self.del_t, hdf5=self.hdf5_file)
                 print("Finished")
             except Exception as ex:
                 print(ex)
