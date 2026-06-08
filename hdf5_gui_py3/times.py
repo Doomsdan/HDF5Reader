@@ -322,14 +322,16 @@ def str2datetime(str_, d_format="%d.%m.%Y %H:%M:%S"):
     >>> str2datetime("01.01.2040 00:00:00")
     datetime.datetime(2040, 1, 1, 0, 0)
     """
+    if isinstance(str_, str):
+        return datetime.strptime(str_, d_format)
+
     try:
         if not isinstance(str_[0], str):
             raise TypeError("Sequence is of type %s, not str" %
                             type(str_[0]))
-        pd_series = pd.to_datetime(str_, format=d_format,
-                                   infer_datetime_format=True)
+        pd_series = pd.to_datetime(str_, format=d_format)
         return pd_series.to_pydatetime()
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError):
         return datetime.strptime(str_, d_format)
 
 

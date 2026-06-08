@@ -1,1 +1,8 @@
 hdf5_gui_py3/anfragen_log.db
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+tests/.tmp/
+.coverage
+htmlcov/
