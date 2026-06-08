@@ -1,4 +1,12 @@
 {
+    "python.defaultInterpreterPath": "C:\\Users\\PC\\anaconda3\\python.exe",
+    "python.pythonPath": "C:\\Users\\PC\\anaconda3\\python.exe",
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "pythonTestExplorer.testFramework": "pytest",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
