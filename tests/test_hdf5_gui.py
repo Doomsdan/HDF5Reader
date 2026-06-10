@@ -33,25 +33,10 @@ def _install_temp_database(monkeypatch, gui_module, db_path):
     def setup_database(self):
         self.conn = sqlite3.connect(db_path)
         cursor = self.conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Kunden (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Anfragen (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                kunden_id INTEGER,
-                zeitpunkt TEXT,
-                start_date TEXT,
-                end_date TEXT,
-                parameter TEXT,
-                FOREIGN KEY(kunden_id) REFERENCES Kunden(id)
-            )
-        """)
+        cursor.execute(gui_module.create_kunden_table_sql())
+        cursor.execute(gui_module.create_anfragen_table_sql())
         cursor.execute(
-            "INSERT OR IGNORE INTO Kunden (name) VALUES (?)",
+            gui_module.insert_customer_query(),
             ("Testkunde",),
         )
         self.conn.commit()

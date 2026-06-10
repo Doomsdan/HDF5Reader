@@ -8,6 +8,116 @@ import traceback
 import sqlite3
 import datetime
 import lauchaecker_config as lconf
+from pypika import Column, Order, Parameter, PostgreSQLQuery, Query, Table
+
+
+KUNDEN_TABLE = Table("Kunden")
+ANFRAGEN_TABLE = Table("Anfragen")
+
+
+def sql_param():
+    return Parameter("?")
+
+
+def create_kunden_table_sql():
+    return (
+        Query.create_table(KUNDEN_TABLE)
+        .if_not_exists()
+        .columns(
+            Column("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            Column("name", "TEXT", nullable=False),
+        )
+        .unique("name")
+        .get_sql()
+    )
+
+
+def create_anfragen_table_sql():
+    return (
+        Query.create_table(ANFRAGEN_TABLE)
+        .if_not_exists()
+        .columns(
+            Column("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            Column("kunden_id", "INTEGER"),
+            Column("zeitpunkt", "TEXT"),
+            Column("start_date", "TEXT"),
+            Column("end_date", "TEXT"),
+            Column("parameter", "TEXT"),
+        )
+        .foreign_key(["kunden_id"], KUNDEN_TABLE, ["id"])
+        .get_sql()
+    )
+
+
+def history_query(kunde_filter, datum_filter):
+    query = (
+        Query.from_(ANFRAGEN_TABLE)
+        .join(KUNDEN_TABLE)
+        .on(ANFRAGEN_TABLE.kunden_id == KUNDEN_TABLE.id)
+        .select(
+            ANFRAGEN_TABLE.id,
+            KUNDEN_TABLE.name,
+            ANFRAGEN_TABLE.zeitpunkt,
+            ANFRAGEN_TABLE.start_date,
+            ANFRAGEN_TABLE.end_date,
+            ANFRAGEN_TABLE.parameter,
+        )
+    )
+    params = []
+
+    if kunde_filter:
+        query = query.where(KUNDEN_TABLE.name.like(sql_param()))
+        params.append(f"%{kunde_filter}%")
+    if datum_filter:
+        query = query.where(ANFRAGEN_TABLE.zeitpunkt.like(sql_param()))
+        params.append(f"{datum_filter}%")
+
+    query = query.orderby(ANFRAGEN_TABLE.zeitpunkt, order=Order.desc)
+    return query.get_sql(), params
+
+
+def customer_names_query():
+    return (
+        Query.from_(KUNDEN_TABLE)
+        .select(KUNDEN_TABLE.name)
+        .orderby(KUNDEN_TABLE.name, order=Order.asc)
+        .get_sql()
+    )
+
+
+def insert_customer_query():
+    return (
+        PostgreSQLQuery.into(KUNDEN_TABLE)
+        .columns(KUNDEN_TABLE.name)
+        .insert(sql_param())
+        .on_conflict(KUNDEN_TABLE.name)
+        .do_nothing()
+        .get_sql()
+    )
+
+
+def customer_id_query():
+    return (
+        Query.from_(KUNDEN_TABLE)
+        .select(KUNDEN_TABLE.id)
+        .where(KUNDEN_TABLE.name == sql_param())
+        .get_sql()
+    )
+
+
+def insert_anfrage_query():
+    return (
+        Query.into(ANFRAGEN_TABLE)
+        .columns(
+            ANFRAGEN_TABLE.kunden_id,
+            ANFRAGEN_TABLE.zeitpunkt,
+            ANFRAGEN_TABLE.start_date,
+            ANFRAGEN_TABLE.end_date,
+            ANFRAGEN_TABLE.parameter,
+        )
+        .insert(sql_param(), sql_param(), sql_param(), sql_param(), sql_param())
+        .get_sql()
+    )
 
 class XStream(QObject):
     _stdout = None
@@ -212,23 +322,8 @@ class Window(QTabWidget):
         db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'anfragen_log.db')
         self.conn = sqlite3.connect(db_path)
         cursor = self.conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS Kunden (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS Anfragen (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                kunden_id INTEGER,
-                zeitpunkt TEXT,
-                start_date TEXT,
-                end_date TEXT,
-                parameter TEXT,
-                FOREIGN KEY(kunden_id) REFERENCES Kunden(id)
-            )
-        ''')
+        cursor.execute(create_kunden_table_sql())
+        cursor.execute(create_anfragen_table_sql())
         self.conn.commit()
 
     def set_style(self):
@@ -553,21 +648,10 @@ class Window(QTabWidget):
     def load_history(self):
         try:
             cursor = self.conn.cursor()
-            query = '''
-                SELECT Anfragen.id, Kunden.name, Anfragen.zeitpunkt, Anfragen.start_date, Anfragen.end_date, Anfragen.parameter
-                FROM Anfragen
-                JOIN Kunden ON Anfragen.kunden_id = Kunden.id
-                WHERE 1=1
-            '''
-            params = []
-            if self.current_kunde_filter:
-                query += ' AND Kunden.name LIKE ?'
-                params.append(f'%{self.current_kunde_filter}%')
-            if self.current_datum_filter:
-                query += ' AND Anfragen.zeitpunkt LIKE ?'
-                params.append(f'{self.current_datum_filter}%')
-            query += ' ORDER BY Anfragen.zeitpunkt DESC'
-            
+            query, params = history_query(
+                self.current_kunde_filter,
+                self.current_datum_filter,
+            )
             cursor.execute(query, params)
             rows = cursor.fetchall()
             self.history_table.setRowCount(len(rows))
@@ -623,7 +707,7 @@ class Window(QTabWidget):
         self.customer_combo.clear()
         try:
             cursor = self.conn.cursor()
-            cursor.execute('SELECT name FROM Kunden ORDER BY name ASC')
+            cursor.execute(customer_names_query())
             kunden = cursor.fetchall()
             for kunde in kunden:
                 self.customer_combo.addItem(kunde[0])
@@ -758,8 +842,8 @@ class Window(QTabWidget):
                 if save_to_db:
                     try:
                         cursor = self.conn.cursor()
-                        cursor.execute('INSERT OR IGNORE INTO Kunden (name) VALUES (?)', (kunde,))
-                        cursor.execute('SELECT id FROM Kunden WHERE name = ?', (kunde,))
+                        cursor.execute(insert_customer_query(), (kunde,))
+                        cursor.execute(customer_id_query(), (kunde,))
                         kunden_id = cursor.fetchone()[0]
                         
                         # Neuen Kunden direkt in die laufende Dropdown-Liste aufnehmen
@@ -769,10 +853,16 @@ class Window(QTabWidget):
                         jetzt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         param_str = ",".join(self.var_list)
                         
-                        cursor.execute('''
-                            INSERT INTO Anfragen (kunden_id, zeitpunkt, start_date, end_date, parameter)
-                            VALUES (?, ?, ?, ?, ?)
-                        ''', (kunden_id, jetzt, str(self.pydate_start), str(self.pydate_end), param_str))
+                        cursor.execute(
+                            insert_anfrage_query(),
+                            (
+                                kunden_id,
+                                jetzt,
+                                str(self.pydate_start),
+                                str(self.pydate_end),
+                                param_str,
+                            ),
+                        )
                         self.conn.commit()
                         print("Anfrage in Datenbank gespeichert.")
                         self.load_history()

@@ -4,6 +4,7 @@ numexpr==2.14.1
 numpy==2.4.6
 pandas==3.0.3
 PyQt5==5.15.11
+PyPika==0.51.1
 pyqt5_sip==12.18.0
 scipy==1.17.1
 tables==3.11.1
