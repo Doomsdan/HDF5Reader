@@ -152,17 +152,22 @@ class XStream(QObject):
 class TransferList(QtWidgets.QWidget):
     def __init__(self, available_vars, parent=None):
         super(TransferList, self).__init__(parent)
-        layout = QtWidgets.QHBoxLayout(self)
+        layout = QtWidgets.QGridLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setHorizontalSpacing(4)
+        layout.setVerticalSpacing(6)
 
         # Linke Liste: Verfügbare Parameter
+        self.available_lab = QLabel("Verfügbar")
         self.list_available = QtWidgets.QListWidget()
-        self.list_available.setMinimumWidth(180)
+        self.list_available.setMinimumWidth(160)
         self.list_available.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.list_available.addItems(available_vars)
 
         # Rechte Liste: Ausgewählte Parameter
+        self.selected_lab = QLabel("Ausgewählt")
         self.list_selected = QtWidgets.QListWidget()
-        self.list_selected.setMinimumWidth(180)
+        self.list_selected.setMinimumWidth(160)
         self.list_selected.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.list_selected.setObjectName("SelectedList")
 
@@ -180,9 +185,11 @@ class TransferList(QtWidgets.QWidget):
         vbox_buttons.addWidget(self.btn_remove)
         vbox_buttons.addStretch()
 
-        layout.addWidget(self.list_available)
-        layout.addLayout(vbox_buttons)
-        layout.addWidget(self.list_selected)
+        layout.addWidget(self.available_lab, 0, 0)
+        layout.addWidget(self.selected_lab, 0, 2)
+        layout.addWidget(self.list_available, 1, 0)
+        layout.addLayout(vbox_buttons, 1, 1)
+        layout.addWidget(self.list_selected, 1, 2)
 
         self.btn_add.clicked.connect(self.add_item)
         self.btn_remove.clicked.connect(self.remove_item)
@@ -304,6 +311,7 @@ class Window(QTabWidget):
         super(Window, self).__init__(parent)
         self.setWindowTitle('HDF5 GUI')
         self.resize(1200, 750)
+        self.setWindowState(self.windowState() | QtCore.Qt.WindowMaximized)
         self.setup_database()
         self.set_style()
 
@@ -317,6 +325,38 @@ class Window(QTabWidget):
 
         self.home()
         self.history_ui()
+
+    def configure_calendar(self, calendar):
+        font = calendar.font()
+        font.setPointSize(8)
+        calendar.setFont(font)
+        calendar.setHorizontalHeaderFormat(QCalendarWidget.ShortDayNames)
+        calendar.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)
+        calendar.setStyleSheet("""
+        QCalendarWidget QToolButton {
+            font-size: 10pt;
+            padding: 1px 4px;
+            min-height: 18px;
+        }
+        QCalendarWidget QSpinBox,
+        QCalendarWidget QAbstractItemView {
+            font-size: 10pt;
+        }
+        """)
+        calendar.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        calendar.setMinimumSize(calendar.sizeHint())
+        calendar.setMaximumSize(calendar.sizeHint())
+
+    def calendar_panel(self, calendar, left_margin=0, right_margin=0):
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(left_margin, 4, right_margin, 6)
+        layout.setSpacing(0)
+        layout.addWidget(calendar)
+        return panel
 
     def setup_database(self):
         db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'anfragen_log.db')
@@ -506,7 +546,6 @@ class Window(QTabWidget):
         self.working_dir_lab = QLabel('Working Directory:')
         self.working_dir_line = QLineEdit()
         self.working_dir_btn = QPushButton('Browse')
-        self.working_dir_btn.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DirOpenIcon))
         self.working_dir_btn.clicked.connect(lambda: self.get_input_dir(_input=True))
         self.grid.addWidget(self.working_dir_lab, i, 0)
         self.grid.addWidget(self.working_dir_line, i, 1, 1, 11)
@@ -521,7 +560,6 @@ class Window(QTabWidget):
         self.hdf5_line = QLineEdit()
         self.hdf5_line.setText(lconf.hdf5_filename)
         self.hdf5_btn = QPushButton('Browse')
-        self.hdf5_btn.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileIcon))
         self.hdf5_btn.clicked.connect(self.get_hdf5_file)
         self.grid.addWidget(self.hdf5_lab, i, 0)
         self.grid.addWidget(self.hdf5_line, i, 1, 1, 11)
@@ -559,23 +597,27 @@ class Window(QTabWidget):
         self.end_date_display.setObjectName("DateDisplay")
         
         start_layout = QtWidgets.QHBoxLayout()
+        start_layout.setContentsMargins(0, 0, 6, 0)
         start_layout.addWidget(self.start_lab)
         start_layout.addWidget(self.start_date_display)
         
         end_layout = QtWidgets.QHBoxLayout()
+        end_layout.setContentsMargins(6, 0, 0, 0)
         end_layout.addWidget(self.end_lab)
         end_layout.addWidget(self.end_date_display)
         
         self.cal_start = QtWidgets.QCalendarWidget()
-        self.cal_start.setMaximumSize(300, 200)
         self.cal_end = QtWidgets.QCalendarWidget()
-        self.cal_end.setMaximumSize(300, 200)
+        self.configure_calendar(self.cal_start)
+        self.configure_calendar(self.cal_end)
+        self.start_calendar_panel = self.calendar_panel(self.cal_start, right_margin=16)
+        self.end_calendar_panel = self.calendar_panel(self.cal_end, left_margin=16)
 
         self.grid.addWidget(self.duration_lab, i, 0)
         self.grid.addLayout(start_layout, i, 1, 1, 6)
         self.grid.addLayout(end_layout, i, 7, 1, 6)
-        self.grid.addWidget(self.cal_start, i+1, 1, 1, 6)
-        self.grid.addWidget(self.cal_end, i+1, 7, 1, 6)
+        self.grid.addWidget(self.start_calendar_panel, i+1, 1, 1, 6)
+        self.grid.addWidget(self.end_calendar_panel, i+1, 7, 1, 6)
 
        # self.connect(self.cal_start, QtCore.SIGNAL('selectionChanged()'), self.date_changed)
         self.cal_start.selectionChanged.connect(self.date_changed)
@@ -592,6 +634,7 @@ class Window(QTabWidget):
                           "dd_19m_sigma", "G", "RK", "A", "E", "CaseTemp", "TC_01", "TC_02", "Tg_2cm", "Tg_5cm",
                           "Tg_10cm", "Tg_20cm", "Tg_50cm", "Qg", "VWC_01", "VWC_02", "VWC_03", "VWC_04", "VWC_05"]
         self.transfer_list = TransferList(alle_variablen)
+        self.transfer_list.setMaximumWidth(700)
         
         self.right_layout.addWidget(self.var_lab)
         self.right_layout.addWidget(self.transfer_list)
@@ -612,8 +655,9 @@ class Window(QTabWidget):
         self.grid.addWidget(self.run_lab, i, 0)
         self.grid.addWidget(self.run_btn, i, 1, 1, 12)
 
-        self.main_layout.addLayout(self.grid)
-        self.main_layout.addLayout(self.right_layout)
+
+        self.main_layout.addLayout(self.grid, 2)
+        self.main_layout.addLayout(self.right_layout, 1)
         self.tab_home.setLayout(self.main_layout)
 
     def history_ui(self):

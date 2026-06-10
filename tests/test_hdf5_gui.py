@@ -98,8 +98,28 @@ def test_window_starts_with_generated_hdf5_testdata(
         assert window.count() == 2
         assert window.tabText(0) == "Anfrage"
         assert window.tabText(1) == "Historie"
+        assert window.windowState() & QtCore.Qt.WindowMaximized
         assert window.hdf5_line.text() == str(sample_lauchaecker_hdf5.path)
         assert window.transfer_list.list_available.count() > 0
+        assert window.main_layout.stretch(0) == 2
+        assert window.main_layout.stretch(1) == 1
+        assert window.transfer_list.maximumWidth() == 700
+        assert window.transfer_list.list_available.minimumWidth() == 160
+        assert window.transfer_list.list_selected.minimumWidth() == 160
+        assert window.transfer_list.available_lab.text() == "Verfügbar"
+        assert window.transfer_list.selected_lab.text() == "Ausgewählt"
+        assert window.start_calendar_panel.layout().contentsMargins().top() == 4
+        assert window.start_calendar_panel.layout().contentsMargins().right() == 16
+        assert window.start_calendar_panel.layout().contentsMargins().bottom() == 6
+        assert window.end_calendar_panel.layout().contentsMargins().left() == 16
+        for calendar in (window.cal_start, window.cal_end):
+            assert calendar.font().pointSize() == 8
+            assert calendar.horizontalHeaderFormat() == gui_module.QCalendarWidget.ShortDayNames
+            assert calendar.verticalHeaderFormat() == gui_module.QCalendarWidget.NoVerticalHeader
+            assert calendar.maximumHeight() >= calendar.sizeHint().height()
+            assert calendar.minimumSize().expandedTo(calendar.sizeHint()) == calendar.minimumSize()
+            assert calendar.sizePolicy().horizontalPolicy() == gui_module.QtWidgets.QSizePolicy.Fixed
+            assert calendar.maximumSize() == calendar.sizeHint()
     finally:
         window.conn.close()
         window.close()
