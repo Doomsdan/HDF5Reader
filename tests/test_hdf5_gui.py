@@ -103,10 +103,17 @@ def test_window_starts_with_generated_hdf5_testdata(
         window.show()
         qapp.processEvents()
 
-        assert window.count() == 3
+        assert window.count() == 4
         assert window.tabText(0) == "Anfrage"
         assert window.tabText(1) == "Historie"
-        assert window.tabText(2) == ""
+        assert window.tabText(2) == "Statistik"
+        assert window.tabText(3) == ""
+        assert window.stats_navigation.count() == 3
+        assert window.stats_navigation.currentRow() == 0
+        assert window.stats_pages.currentIndex() == 0
+        window.stats_navigation.setCurrentRow(2)
+        qapp.processEvents()
+        assert window.stats_pages.currentIndex() == 2
         assert window.tab_settings.layout() is not None
         assert not window.tabBar().isTabVisible(window.settings_tab_index)
         assert window.tabBar().tabSizeHint(window.settings_tab_index).isEmpty()

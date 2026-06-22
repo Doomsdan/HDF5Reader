@@ -2,6 +2,7 @@
 
 import json
 import os
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -187,12 +188,14 @@ class SettingsMixin:
             os.close(handle)
             temp_path = Path(temp_name)
 
-            with sqlite3.connect(str(source)) as source_conn:
+            # Context management commits SQLite transactions but does not close
+            # connections, which prevents replacing the file on Windows.
+            with closing(sqlite3.connect(str(source))) as source_conn:
                 check_result = source_conn.execute("PRAGMA quick_check").fetchone()
                 if not check_result or check_result[0] != "ok":
                     raise sqlite3.DatabaseError("Die SQLite-Prüfung ist fehlgeschlagen.")
 
-                with sqlite3.connect(str(temp_path)) as imported_conn:
+                with closing(sqlite3.connect(str(temp_path))) as imported_conn:
                     source_conn.backup(imported_conn)
                     imported_conn.execute(create_kunden_table_sql())
                     imported_conn.execute(create_anfragen_table_sql())
@@ -205,6 +208,7 @@ class SettingsMixin:
 
             self.load_customers()
             self.load_history()
+            self.load_stats()
             self.database_import_status.setText(
                 f"Datenbank erfolgreich importiert: {source.name}"
             )

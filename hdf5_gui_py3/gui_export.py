@@ -105,6 +105,7 @@ class ExportMixin:
             self.conn.commit()
             print("Anfrage in Datenbank gespeichert.")
             self.load_history()
+            self.load_stats()
         except Exception as e:
             print("Fehler beim Speichern in der Datenbank:", e)
 
