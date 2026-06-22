@@ -106,7 +106,15 @@ class HistoryMixin:
         if dlg.exec_():
             self.current_datum_filter = dlg.get_selected_date()
             if self.current_datum_filter:
-                self.btn_filter_datum.setText(f"Datum: {self.current_datum_filter}")
+                if isinstance(self.current_datum_filter, tuple):
+                    start_date, end_date = self.current_datum_filter
+                    self.btn_filter_datum.setText(
+                        f"Zeitraum: {start_date} - {end_date}"
+                    )
+                else:
+                    self.btn_filter_datum.setText(
+                        f"Datum: {self.current_datum_filter}"
+                    )
             else:
                 self.btn_filter_datum.setText("Datum Filter")
             self.load_history()

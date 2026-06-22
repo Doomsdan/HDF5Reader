@@ -126,6 +126,10 @@ def test_window_starts_with_generated_hdf5_testdata(
         assert window.transfer_list.list_available.count() > 0
         assert window.main_layout.stretch(0) == 2
         assert window.main_layout.stretch(1) == 1
+        assert window.main_layout.spacing() == 14
+        assert window.grid.horizontalSpacing() == 10
+        assert window.grid.verticalSpacing() == 10
+        assert window.right_layout.spacing() == 10
         assert window.transfer_list.maximumWidth() == 700
         assert window.transfer_list.list_available.minimumWidth() == 160
         assert window.transfer_list.list_selected.minimumWidth() == 160
