@@ -111,6 +111,9 @@ def test_window_starts_with_generated_hdf5_testdata(
         assert window.stats_navigation.count() == 3
         assert window.stats_navigation.currentRow() == 0
         assert window.stats_pages.currentIndex() == 0
+        assert window.parameter_stats_chart.axes is not None
+        assert window.parameter_customer_stats_chart.axes is not None
+        assert window.customer_stats_chart.axes is not None
         window.stats_navigation.setCurrentRow(2)
         qapp.processEvents()
         assert window.stats_pages.currentIndex() == 2
@@ -215,6 +218,69 @@ def test_time_delta_is_converted_to_minutes(qapp, gui_module, restored_process_s
         for unit, expected in expected_minutes.items():
             window.time_delta_unit.setCurrentText(unit)
             assert window.time_delta_minutes() == expected
+    finally:
+        window.conn.close()
+        window.close()
+        gui_module.XStream._stdout = None
+        gui_module.XStream._stderr = None
+
+
+@pytest.mark.gui
+def test_parameter_customer_stats_can_be_filtered(
+    qapp,
+    gui_module,
+    restored_process_state,
+):
+    window = gui_module.Window()
+    try:
+        window.conn.execute("INSERT INTO Kunden (name) VALUES (?)", ("Andere",))
+        customer_ids = dict(
+            window.conn.execute("SELECT name, id FROM Kunden").fetchall()
+        )
+        window.conn.executemany(
+            """
+            INSERT INTO Anfragen
+                (kunden_id, zeitpunkt, start_date, end_date, parameter)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (customer_ids["Testkunde"], "2026-06-01", "", "", "Ta_2m,rh_2m"),
+                (customer_ids["Andere"], "2026-06-02", "", "", "Ta_2m"),
+            ],
+        )
+        window.conn.commit()
+        window.load_stats()
+
+        assert window.parameter_customer_stats_table.rowCount() == 3
+
+        def check_value(filter_dropdown, value):
+            filter_dropdown.set_selected_values(
+                filter_dropdown.selected_values() | {value}
+            )
+
+        breakdown_filters = window.stats_filters["parameter_customers"]
+        check_value(breakdown_filters["customers"], "Testkunde")
+        assert window.parameter_customer_stats_table.rowCount() == 2
+
+        check_value(breakdown_filters["parameters"], "Ta_2m")
+        check_value(breakdown_filters["parameters"], "rh_2m")
+        assert window.parameter_customer_stats_table.rowCount() == 2
+        check_value(breakdown_filters["customers"], "Andere")
+        assert window.parameter_customer_stats_table.rowCount() == 3
+        assert len(window.parameter_customer_stats_chart.axes.patches) == 3
+        assert breakdown_filters["customers"].lineEdit().text() == (
+            "Andere, Testkunde"
+        )
+
+        parameter_filters = window.stats_filters["parameters"]
+        assert set(parameter_filters) == {"parameters"}
+        check_value(parameter_filters["parameters"], "rh_2m")
+        assert window.parameter_stats_table.rowCount() == 1
+
+        customer_filters = window.stats_filters["customers"]
+        assert set(customer_filters) == {"customers"}
+        check_value(customer_filters["customers"], "Andere")
+        assert window.customer_stats_table.rowCount() == 1
     finally:
         window.conn.close()
         window.close()

@@ -1,4 +1,4 @@
-from gui_stats import aggregate_request_stats
+from gui_stats import aggregate_request_stats, filter_request_rows
 
 
 def test_aggregate_request_stats_counts_parameters_and_customers():
@@ -34,3 +34,17 @@ def test_aggregate_request_stats_counts_requests_without_parameters():
     assert parameter_usage == []
     assert parameter_customers == []
     assert customer_requests == [("Alice", 2)]
+
+
+def test_filter_request_rows_supports_multiple_customers_and_parameters():
+    rows = [
+        ("Alice", "Ta_2m,rh_2m"),
+        ("Bob", "Ta_2m,G"),
+        ("Charlie", "rh_2m"),
+    ]
+
+    assert filter_request_rows(
+        rows,
+        customers={"Alice", "Bob"},
+        parameters={"rh_2m", "G"},
+    ) == [("Alice", "rh_2m"), ("Bob", "G")]
