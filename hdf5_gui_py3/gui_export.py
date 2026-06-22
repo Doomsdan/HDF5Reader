@@ -100,11 +100,13 @@ class ExportMixin:
                     str(self.pydate_start),
                     str(self.pydate_end),
                     param_str,
+                    self.del_t,
                 ),
             )
             self.conn.commit()
             print("Anfrage in Datenbank gespeichert.")
             self.load_history()
+            self.load_stats()
         except Exception as e:
             print("Fehler beim Speichern in der Datenbank:", e)
 

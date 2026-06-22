@@ -200,4 +200,7 @@ class HomeTabMixin:
         self.cal_start.setSelectedDate(QtCore.QDate.fromString(start_str, "yyyy-MM-dd"))
         self.cal_end.setSelectedDate(QtCore.QDate.fromString(end_str, "yyyy-MM-dd"))
         self.transfer_list.set_selected_variables(params_str.split(","))
+        if len(row_data) > 6 and row_data[6] not in (None, ""):
+            self.time_delta_input.setText(str(row_data[6]))
+            self.time_delta_unit.setCurrentText("Minuten")
         return True

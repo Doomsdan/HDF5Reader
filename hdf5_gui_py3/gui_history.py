@@ -16,6 +16,7 @@ from gui_sql import (
     create_anfragen_table_sql,
     create_kunden_table_sql,
     customer_names_query,
+    ensure_anfragen_time_delta_column,
     history_query,
 )
 from gui_widgets import AddressBookDialog, CalendarDialog, CustomerCompleter
@@ -31,15 +32,17 @@ class HistoryMixin:
         cursor = self.conn.cursor()
         cursor.execute(create_kunden_table_sql())
         cursor.execute(create_anfragen_table_sql())
+        ensure_anfragen_time_delta_column(self.conn)
         self.conn.commit()
 
     def history_ui(self):
         layout = QVBoxLayout()
         self.history_table = QTableWidget()
         self.history_table.setAlternatingRowColors(True)
-        self.history_table.setColumnCount(8)
+        self.history_table.setColumnCount(9)
         self.history_table.setHorizontalHeaderLabels([
-            'ID', 'Kunde', 'Zeitpunkt', 'Start', 'Ende', 'Parameter', 'Laden', 'Ausfuehren',
+            'ID', 'Kunde', 'Zeitpunkt', 'Start', 'Ende', 'Parameter',
+            'Time Delta (Min.)', 'Laden', 'Ausfuehren',
         ])
         self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.history_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
@@ -80,11 +83,11 @@ class HistoryMixin:
 
                 btn_load = QPushButton('Laden')
                 btn_load.clicked.connect(lambda checked, d=row_data: self.action_load_to_tab(d))
-                self.history_table.setCellWidget(row_idx, 6, btn_load)
+                self.history_table.setCellWidget(row_idx, 7, btn_load)
 
                 btn_rerun = QPushButton('Ausfuehren')
                 btn_rerun.clicked.connect(lambda checked, d=row_data: self.action_rerun_history(d))
-                self.history_table.setCellWidget(row_idx, 7, btn_rerun)
+                self.history_table.setCellWidget(row_idx, 8, btn_rerun)
         except Exception as e:
             print("Fehler beim Laden der Historie:", e)
 

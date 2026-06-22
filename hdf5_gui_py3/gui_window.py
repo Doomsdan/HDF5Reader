@@ -7,6 +7,7 @@ from gui_export import ExportMixin
 from gui_history import HistoryMixin
 from gui_home import HomeTabMixin
 from gui_settings import SettingsMixin
+from gui_stats import StatsMixin
 from gui_style import WindowStyleMixin
 
 
@@ -37,6 +38,7 @@ class Window(
     ExportMixin,
     HistoryMixin,
     HomeTabMixin,
+    StatsMixin,
     SettingsMixin,
     WindowStyleMixin,
     QTabWidget,
@@ -56,9 +58,11 @@ class Window(
 
         self.tab_home = QWidget()
         self.tab_history = QWidget()
+        self.tab_stats = QWidget()
         self.tab_settings = QWidget()
         self.addTab(self.tab_home, "Anfrage")
         self.addTab(self.tab_history, "Historie")
+        self.stats_tab_index = self.addTab(self.tab_stats, "Statistik")
         self.settings_tab_index = self.addTab(self.tab_settings, "")
 
         # Keep Settings as a real tab page, but expose it through a separate
@@ -79,6 +83,7 @@ class Window(
 
         self.home()
         self.history_ui()
+        self.stats_ui()
         self.settings_ui()
 
     def _update_settings_tab_button(self, index):
