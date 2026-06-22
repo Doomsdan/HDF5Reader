@@ -381,6 +381,26 @@ def test_window_run_exports_selected_generated_hdf5_data(
         assert len(content.splitlines()) == 1 + 24
         assert "Finished" in console_text
         assert window.history_table.rowCount() == 1
+        assert window.history_table.columnCount() == 9
+        assert window.history_table.item(0, 6).text() == "60"
+        assert window.conn.execute(
+            "SELECT time_delta FROM Anfragen"
+        ).fetchone() == (60,)
+
+        history_row = window.conn.execute(
+            """
+            SELECT Anfragen.id, Kunden.name, Anfragen.zeitpunkt,
+                   Anfragen.start_date, Anfragen.end_date,
+                   Anfragen.parameter, Anfragen.time_delta
+            FROM Anfragen
+            JOIN Kunden ON Anfragen.kunden_id = Kunden.id
+            """
+        ).fetchone()
+        window.time_delta_input.setText("5")
+        window.time_delta_unit.setCurrentText("Tage")
+        window.load_entry_to_ui(history_row)
+        assert window.time_delta_input.text() == "60"
+        assert window.time_delta_unit.currentText() == "Minuten"
     finally:
         window.conn.close()
         window.close()

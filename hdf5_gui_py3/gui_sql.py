@@ -37,10 +37,23 @@ def create_anfragen_table_sql():
             Column("start_date", "TEXT"),
             Column("end_date", "TEXT"),
             Column("parameter", "TEXT"),
+            Column("time_delta", "INTEGER"),
         )
         .foreign_key(["kunden_id"], KUNDEN_TABLE, ["id"])
         .get_sql()
     )
+
+
+def ensure_anfragen_time_delta_column(connection):
+    """Add time_delta when opening a database created by an older version."""
+    columns = {
+        row[1] for row in connection.execute('PRAGMA table_info("Anfragen")')
+    }
+    if "time_delta" not in columns:
+        connection.execute(
+            'ALTER TABLE "Anfragen" ADD COLUMN "time_delta" INTEGER'
+        )
+        connection.commit()
 
 
 def history_query(kunde_filter, datum_filter):
@@ -55,6 +68,7 @@ def history_query(kunde_filter, datum_filter):
             ANFRAGEN_TABLE.start_date,
             ANFRAGEN_TABLE.end_date,
             ANFRAGEN_TABLE.parameter,
+            ANFRAGEN_TABLE.time_delta,
         )
     )
     params = []
@@ -117,7 +131,15 @@ def insert_anfrage_query():
             ANFRAGEN_TABLE.start_date,
             ANFRAGEN_TABLE.end_date,
             ANFRAGEN_TABLE.parameter,
+            ANFRAGEN_TABLE.time_delta,
         )
-        .insert(sql_param(), sql_param(), sql_param(), sql_param(), sql_param())
+        .insert(
+            sql_param(),
+            sql_param(),
+            sql_param(),
+            sql_param(),
+            sql_param(),
+            sql_param(),
+        )
         .get_sql()
     )

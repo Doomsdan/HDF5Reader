@@ -63,6 +63,7 @@ __all__ = [
     "sql_param",
     "create_kunden_table_sql",
     "create_anfragen_table_sql",
+    "ensure_anfragen_time_delta_column",
     "history_query",
     "customer_names_query",
     "insert_customer_query",

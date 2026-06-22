@@ -17,7 +17,11 @@ from PyQt5.QtWidgets import (
 )
 
 import lauchaecker_config as lconf
-from gui_sql import create_anfragen_table_sql, create_kunden_table_sql
+from gui_sql import (
+    create_anfragen_table_sql,
+    create_kunden_table_sql,
+    ensure_anfragen_time_delta_column,
+)
 
 
 class SettingsMixin:
@@ -199,6 +203,7 @@ class SettingsMixin:
                     source_conn.backup(imported_conn)
                     imported_conn.execute(create_kunden_table_sql())
                     imported_conn.execute(create_anfragen_table_sql())
+                    ensure_anfragen_time_delta_column(imported_conn)
                     imported_conn.commit()
 
             self.conn.close()

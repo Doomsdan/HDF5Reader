@@ -100,6 +100,7 @@ class ExportMixin:
                     str(self.pydate_start),
                     str(self.pydate_end),
                     param_str,
+                    self.del_t,
                 ),
             )
             self.conn.commit()
