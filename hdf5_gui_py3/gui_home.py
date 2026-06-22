@@ -33,6 +33,7 @@ class HomeTabMixin:
 
         row = self._add_customer_input(row)
         row = self._add_date_inputs(row)
+        row = self._add_time_delta_input(row)
         row = self._add_variable_picker(row)
         row = self._add_console(row)
         self._add_run_button(row)
@@ -106,6 +107,44 @@ class HomeTabMixin:
         self.right_layout.addWidget(self.var_lab)
         self.right_layout.addWidget(self.transfer_list)
         return row
+
+    def _add_time_delta_input(self, row):
+        self.time_delta_lab = QLabel('Time_Delta:')
+        self.time_delta_input = QLineEdit('1')
+        self.time_delta_input.setValidator(QtGui.QIntValidator(1, 1000000, self))
+        self.time_delta_input.setPlaceholderText('Wert')
+        self.time_delta_input.setToolTip('Positiven ganzzahligen Wert eingeben')
+
+        self.time_delta_unit = QtWidgets.QComboBox()
+        self.time_delta_unit.addItems(['Minuten', 'Stunden', 'Tage'])
+        self.time_delta_unit.setToolTip('Einheit des Time_Delta auswählen')
+
+        input_layout = QtWidgets.QHBoxLayout()
+        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.addWidget(self.time_delta_input)
+        input_layout.addWidget(self.time_delta_unit)
+        input_layout.addStretch()
+
+        self.grid.addWidget(self.time_delta_lab, row, 0)
+        self.grid.addLayout(input_layout, row, 1, 1, 12)
+        return row + 1
+
+    def time_delta_minutes(self):
+        """Return the selected time delta in the exporter's minute unit."""
+        value_text = self.time_delta_input.text().strip()
+        if not value_text:
+            raise ValueError('Time_Delta fehlt')
+
+        value = int(value_text)
+        if value <= 0:
+            raise ValueError('Time_Delta muss größer als 0 sein')
+
+        factors = {
+            'Minuten': 1,
+            'Stunden': 60,
+            'Tage': 1440,
+        }
+        return value * factors[self.time_delta_unit.currentText()]
 
     def _add_console(self, row):
         self.console = QTextBrowser(self)

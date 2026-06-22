@@ -27,8 +27,6 @@ class ExportMixin:
             elif self.allesgut:
                 self._prepare_export_path(kunde)
 
-            self.del_t = 1
-
             if self.allesgut == True:
                 if save_to_db:
                     self._save_request(kunde)
@@ -55,6 +53,12 @@ class ExportMixin:
             assert self.pydate_end
         except:
             print("invalid duration")
+            self.allesgut = False
+
+        try:
+            self.del_t = self.time_delta_minutes()
+        except (KeyError, TypeError, ValueError):
+            print("Bitte ein gültiges Time_Delta größer als 0 angeben.")
             self.allesgut = False
 
         self.var_list = self.transfer_list.get_selected_variables()
