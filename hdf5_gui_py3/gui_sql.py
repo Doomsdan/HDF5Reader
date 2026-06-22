@@ -1,5 +1,7 @@
 """SQL query builders for the HDF5 GUI."""
 
+from datetime import date, timedelta
+
 from pypika import Column, Order, Parameter, PostgreSQLQuery, Query, Table
 
 
@@ -61,8 +63,17 @@ def history_query(kunde_filter, datum_filter):
         query = query.where(KUNDEN_TABLE.name.like(sql_param()))
         params.append(f"%{kunde_filter}%")
     if datum_filter:
-        query = query.where(ANFRAGEN_TABLE.zeitpunkt.like(sql_param()))
-        params.append(f"{datum_filter}%")
+        if isinstance(datum_filter, (tuple, list)):
+            start_date, end_date = datum_filter
+            day_after_end = (
+                date.fromisoformat(end_date) + timedelta(days=1)
+            ).isoformat()
+            query = query.where(ANFRAGEN_TABLE.zeitpunkt >= sql_param())
+            query = query.where(ANFRAGEN_TABLE.zeitpunkt < sql_param())
+            params.extend([start_date, day_after_end])
+        else:
+            query = query.where(ANFRAGEN_TABLE.zeitpunkt.like(sql_param()))
+            params.append(f"{datum_filter}%")
 
     query = query.orderby(ANFRAGEN_TABLE.zeitpunkt, order=Order.desc)
     return query.get_sql(), params

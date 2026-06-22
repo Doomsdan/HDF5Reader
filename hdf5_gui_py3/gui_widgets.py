@@ -144,8 +144,34 @@ class CalendarDialog(QDialog):
         self.setWindowTitle("Datum Filter")
         self.layout = QVBoxLayout(self)
 
+        mode_layout = QtWidgets.QHBoxLayout()
+        self.single_date_radio = QtWidgets.QRadioButton("Einzeldatum")
+        self.date_range_radio = QtWidgets.QRadioButton("Zeitraum")
+        self.single_date_radio.setChecked(True)
+        mode_layout.addWidget(self.single_date_radio)
+        mode_layout.addWidget(self.date_range_radio)
+        mode_layout.addStretch()
+        self.layout.addLayout(mode_layout)
+
+        self.date_pages = QtWidgets.QStackedWidget()
+
         self.calendar = QCalendarWidget()
-        self.layout.addWidget(self.calendar)
+        self.date_pages.addWidget(self.calendar)
+
+        range_page = QtWidgets.QWidget()
+        range_layout = QtWidgets.QHBoxLayout(range_page)
+        start_layout = QVBoxLayout()
+        start_layout.addWidget(QLabel("Startdatum"))
+        self.start_calendar = QCalendarWidget()
+        start_layout.addWidget(self.start_calendar)
+        end_layout = QVBoxLayout()
+        end_layout.addWidget(QLabel("Enddatum"))
+        self.end_calendar = QCalendarWidget()
+        end_layout.addWidget(self.end_calendar)
+        range_layout.addLayout(start_layout)
+        range_layout.addLayout(end_layout)
+        self.date_pages.addWidget(range_page)
+        self.layout.addWidget(self.date_pages)
 
         btn_layout = QtWidgets.QHBoxLayout()
         self.btn_clear = QPushButton("Filter löschen")
@@ -157,11 +183,28 @@ class CalendarDialog(QDialog):
         self.btn_ok.clicked.connect(self.accept)
         self.btn_clear.clicked.connect(self.clear_and_accept)
         self.calendar.activated.connect(self.accept)
+        self.single_date_radio.toggled.connect(self._update_mode)
+        self.start_calendar.selectionChanged.connect(self._update_end_minimum)
 
         self.selected_date = ""
 
+    def _update_mode(self, single_date):
+        self.date_pages.setCurrentIndex(0 if single_date else 1)
+
+    def _update_end_minimum(self):
+        start_date = self.start_calendar.selectedDate()
+        self.end_calendar.setMinimumDate(start_date)
+        if self.end_calendar.selectedDate() < start_date:
+            self.end_calendar.setSelectedDate(start_date)
+
     def accept(self):
-        self.selected_date = self.calendar.selectedDate().toString("yyyy-MM-dd")
+        if self.single_date_radio.isChecked():
+            self.selected_date = self.calendar.selectedDate().toString("yyyy-MM-dd")
+        else:
+            self.selected_date = (
+                self.start_calendar.selectedDate().toString("yyyy-MM-dd"),
+                self.end_calendar.selectedDate().toString("yyyy-MM-dd"),
+            )
         super(CalendarDialog, self).accept()
 
     def clear_and_accept(self):

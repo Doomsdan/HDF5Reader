@@ -29,6 +29,10 @@ class HomeTabMixin:
         self.main_layout = QtWidgets.QHBoxLayout()
         self.grid = QGridLayout()
         self.right_layout = QVBoxLayout()
+        self.main_layout.setSpacing(14)
+        self.grid.setHorizontalSpacing(10)
+        self.grid.setVerticalSpacing(10)
+        self.right_layout.setSpacing(10)
         row = 1
 
         row = self._add_customer_input(row)
@@ -121,6 +125,7 @@ class HomeTabMixin:
 
         input_layout = QtWidgets.QHBoxLayout()
         input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.setSpacing(8)
         input_layout.addWidget(self.time_delta_input)
         input_layout.addWidget(self.time_delta_unit)
         input_layout.addStretch()
