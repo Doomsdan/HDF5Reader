@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import shutil
 import sqlite3
 import sys
 from pathlib import Path
@@ -128,6 +129,11 @@ def test_window_starts_with_generated_hdf5_testdata(
         assert window.transfer_list.maximumWidth() == 700
         assert window.transfer_list.list_available.minimumWidth() == 160
         assert window.transfer_list.list_selected.minimumWidth() == 160
+        assert window.time_delta_input.text() == "1"
+        assert [
+            window.time_delta_unit.itemText(index)
+            for index in range(window.time_delta_unit.count())
+        ] == ["Minuten", "Stunden", "Tage"]
         assert window.transfer_list.available_lab.text() == "Verfügbar"
         assert window.transfer_list.selected_lab.text() == "Ausgewählt"
         assert window.start_calendar_panel.layout().contentsMargins().top() == 4
@@ -177,6 +183,27 @@ def test_settings_imports_sqlite_database(
             assert conn.execute("SELECT name FROM Kunden").fetchall() == [
                 ("Importkunde",),
             ]
+    finally:
+        window.conn.close()
+        window.close()
+        gui_module.XStream._stdout = None
+        gui_module.XStream._stderr = None
+
+
+@pytest.mark.gui
+def test_time_delta_is_converted_to_minutes(qapp, gui_module, restored_process_state):
+    window = gui_module.Window()
+    try:
+        expected_minutes = {
+            "Minuten": 2,
+            "Stunden": 120,
+            "Tage": 2880,
+        }
+        window.time_delta_input.setText("2")
+
+        for unit, expected in expected_minutes.items():
+            window.time_delta_unit.setCurrentText(unit)
+            assert window.time_delta_minutes() == expected
     finally:
         window.conn.close()
         window.close()
@@ -237,7 +264,7 @@ def test_window_run_exports_selected_generated_hdf5_data(
 ):
     window = gui_module.Window()
     try:
-        export_hdf5 = tmp_path / sample_lauchaecker_hdf5.path.name
+        export_hdf5 = tmp_path / "export_test.h5"
         export_root = tmp_path / "Text Exports"
         shutil.copy2(sample_lauchaecker_hdf5.path, export_hdf5)
         window.settings_hdf5_line.setText(str(export_hdf5))
@@ -258,6 +285,8 @@ def test_window_run_exports_selected_generated_hdf5_data(
         window.transfer_list.set_selected_variables(
             list(sample_lauchaecker_hdf5.variables)
         )
+        window.time_delta_input.setText("1")
+        window.time_delta_unit.setCurrentText("Stunden")
         qapp.processEvents()
 
         window.run(save_to_db=True)
@@ -272,7 +301,7 @@ def test_window_run_exports_selected_generated_hdf5_data(
 
         content = export_files[0].read_text(encoding="utf-8")
         assert content.startswith("date\tTa_2m\trh_2m\n")
-        assert len(content.splitlines()) == 1 + 24 * 60
+        assert len(content.splitlines()) == 1 + 24
         assert "Finished" in console_text
         assert window.history_table.rowCount() == 1
     finally:
