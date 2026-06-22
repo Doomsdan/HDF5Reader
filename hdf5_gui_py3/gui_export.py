@@ -39,18 +39,15 @@ class ExportMixin:
             QApplication.restoreOverrideCursor()
 
     def _validate_export_inputs(self):
-        self.hdf5_file = self.hdf5_line.text()
+        self.hdf5_file = self.hdf5_location
         try:
             assert self.hdf5_file and os.path.isfile(self.hdf5_file)
         except:
             print("Invalid or missing HDF5 file")
             self.allesgut = False
 
-        try:
-            assert self.working_dir
-            os.chdir(self.working_dir)
-        except:
-            print("Invalid Working directory")
+        if not self.output_folder:
+            print("Invalid or missing output folder")
             self.allesgut = False
 
         try:
@@ -67,15 +64,13 @@ class ExportMixin:
 
     def _prepare_export_path(self, kunde):
         now = datetime.datetime.now()
-        year_str = now.strftime("%Y")
         time_str = now.strftime("%Y%m%d%H%M%S")
         safe_kunde = kunde.replace(" ", "")
         filename = f"{safe_kunde}_{time_str}.txt"
 
-        export_dir = os.path.join(self.working_dir, "Export", year_str)
         try:
-            os.makedirs(export_dir, exist_ok=True)
-            self.out_dir = os.path.join(export_dir, filename)
+            os.makedirs(self.output_folder, exist_ok=True)
+            self.out_dir = os.path.join(self.output_folder, filename)
         except Exception as e:
             print("Fehler beim Erstellen des Export-Ordners:", e)
             self.allesgut = False

@@ -23,8 +23,11 @@ from gui_widgets import AddressBookDialog, CalendarDialog, CustomerCompleter
 
 class HistoryMixin:
     def setup_database(self):
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'anfragen_log.db')
-        self.conn = sqlite3.connect(db_path)
+        self.database_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'anfragen_log.db',
+        )
+        self.conn = sqlite3.connect(self.database_path)
         cursor = self.conn.cursor()
         cursor.execute(create_kunden_table_sql())
         cursor.execute(create_anfragen_table_sql())

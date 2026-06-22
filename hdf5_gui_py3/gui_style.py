@@ -73,6 +73,24 @@ class WindowStyleMixin:
         QTabBar::tab:hover:!selected {
             background: #cbd5e1;
         }
+        QToolButton#settingsTabButton {
+            background: #e2e8f0;
+            border: 1px solid #cfd9e5;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            color: #64748b;
+            min-width: 150px;
+            padding: 8px 20px;
+        }
+        QToolButton#settingsTabButton:hover {
+            background: #cbd5e1;
+        }
+        QToolButton#settingsTabButton[selected="true"] {
+            background: #ffffff;
+            border-bottom-color: #ffffff;
+            color: #0f172a;
+            font-weight: bold;
+        }
         QPushButton {
             background-color: #ffffff;
             border: 1px solid #cbd5e1;

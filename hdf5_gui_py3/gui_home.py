@@ -2,7 +2,6 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (
-    QFileDialog,
     QGridLayout,
     QLabel,
     QLineEdit,
@@ -11,7 +10,6 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
-import lauchaecker_config as lconf
 from gui_streams import XStream
 from gui_widgets import TransferList
 
@@ -33,7 +31,6 @@ class HomeTabMixin:
         self.right_layout = QVBoxLayout()
         row = 1
 
-        row = self._add_path_inputs(row)
         row = self._add_customer_input(row)
         row = self._add_date_inputs(row)
         row = self._add_variable_picker(row)
@@ -43,34 +40,6 @@ class HomeTabMixin:
         self.main_layout.addLayout(self.grid, 2)
         self.main_layout.addLayout(self.right_layout, 1)
         self.tab_home.setLayout(self.main_layout)
-
-    def _add_path_inputs(self, row):
-        self.working_dir_lab = QLabel('Working Directory:')
-        self.working_dir_line = QLineEdit()
-        self.working_dir_btn = QPushButton('Browse')
-        self.working_dir_btn.clicked.connect(lambda: self.get_input_dir(_input=True))
-        self.grid.addWidget(self.working_dir_lab, row, 0)
-        self.grid.addWidget(self.working_dir_line, row, 1, 1, 11)
-        self.grid.addWidget(self.working_dir_btn, row, 12)
-        self.working_dir_lab.setToolTip(str('Full path to the Working Directory.'))
-        self.working_dir_line.setToolTip(str('Full path to the Working Directory.'))
-        self.working_dir_btn.setToolTip(str('Browse to Working Directory.'))
-        self.working_dir = self.working_dir_line.text()
-        row += 1
-
-        self.hdf5_lab = QLabel('HDF5 File:')
-        self.hdf5_line = QLineEdit()
-        self.hdf5_line.setText(lconf.hdf5_filename)
-        self.hdf5_btn = QPushButton('Browse')
-        self.hdf5_btn.clicked.connect(self.get_hdf5_file)
-        self.grid.addWidget(self.hdf5_lab, row, 0)
-        self.grid.addWidget(self.hdf5_line, row, 1, 1, 11)
-        self.grid.addWidget(self.hdf5_btn, row, 12)
-        self.hdf5_lab.setToolTip('Select the HDF5 input file.')
-        self.hdf5_line.setToolTip('Full path to the HDF5 input file.')
-        self.hdf5_btn.setToolTip('Browse for HDF5 file.')
-        self.hdf5_file = self.hdf5_line.text()
-        return row + 1
 
     def _add_customer_input(self, row):
         self.customer_lab = QLabel('Kunde:')
@@ -176,31 +145,6 @@ class HomeTabMixin:
             print("Duration: ", self.pydate_start, "to ", self.pydate_end)
         except:
             print("Please specify a valid duration")
-
-    def get_input_dir(self, _input=True):
-        try:
-            if _input:
-                self.working_dir = str(QFileDialog.getExistingDirectory(self))
-                self.working_dir_line.setText(self.working_dir)
-                assert self.working_dir
-                print("Working Directory set to: ", self.working_dir)
-        except:
-            print("Please specify a valid Working directory")
-
-    def get_hdf5_file(self):
-        try:
-            file_name, _ = QFileDialog.getOpenFileName(
-                self,
-                "Select HDF5 File",
-                "",
-                "HDF5 Files (*.h5 *.hdf5);;All Files (*)",
-            )
-            if file_name:
-                self.hdf5_file = file_name
-                self.hdf5_line.setText(self.hdf5_file)
-                print("HDF5 File set to:", self.hdf5_file)
-        except Exception as e:
-            print("Error selecting HDF5 file:", e)
 
     def load_entry_to_ui(self, row_data):
         kunde = str(row_data[1])

@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import os
 import sqlite3
 import sys
@@ -31,7 +32,8 @@ def _load_gui_module(monkeypatch):
 
 def _install_temp_database(monkeypatch, gui_module, db_path):
     def setup_database(self):
-        self.conn = sqlite3.connect(db_path)
+        self.database_path = str(db_path)
+        self.conn = sqlite3.connect(self.database_path)
         cursor = self.conn.cursor()
         cursor.execute(gui_module.create_kunden_table_sql())
         cursor.execute(gui_module.create_anfragen_table_sql())
@@ -54,6 +56,11 @@ def gui_module(monkeypatch, sample_lauchaecker_hdf5, tmp_path):
         str(sample_lauchaecker_hdf5.path),
     )
     _install_temp_database(monkeypatch, hdf5_gui, tmp_path / "anfragen_log.db")
+    monkeypatch.setattr(
+        hdf5_gui.Window,
+        "settings_path",
+        tmp_path / "settings.json",
+    )
     return hdf5_gui
 
 
@@ -95,11 +102,26 @@ def test_window_starts_with_generated_hdf5_testdata(
         window.show()
         qapp.processEvents()
 
-        assert window.count() == 2
+        assert window.count() == 3
         assert window.tabText(0) == "Anfrage"
         assert window.tabText(1) == "Historie"
+        assert window.tabText(2) == ""
+        assert window.tab_settings.layout() is not None
+        assert not window.tabBar().isTabVisible(window.settings_tab_index)
+        assert window.tabBar().tabSizeHint(window.settings_tab_index).isEmpty()
+        assert window.cornerWidget(QtCore.Qt.TopRightCorner) is window.settings_tab_button
+        QtTest.QTest.mouseClick(window.settings_tab_button, QtCore.Qt.LeftButton)
+        qapp.processEvents()
+        assert window.currentWidget() is window.tab_settings
+        assert window.settings_tab_button.property("selected") is True
+        assert window.import_database_button.text() == "Import Database"
+        assert window.settings_hdf5_line.text() == str(sample_lauchaecker_hdf5.path)
+        assert window.settings_output_folder_line.text() == str(
+            sample_lauchaecker_hdf5.path.parent / "Export"
+        )
         assert window.windowState() & QtCore.Qt.WindowMaximized
-        assert window.hdf5_line.text() == str(sample_lauchaecker_hdf5.path)
+        assert not hasattr(window, "hdf5_line")
+        assert not hasattr(window, "working_dir_line")
         assert window.transfer_list.list_available.count() > 0
         assert window.main_layout.stretch(0) == 2
         assert window.main_layout.stretch(1) == 1
@@ -123,6 +145,84 @@ def test_window_starts_with_generated_hdf5_testdata(
     finally:
         window.conn.close()
         window.close()
+
+
+@pytest.mark.gui
+def test_settings_imports_sqlite_database(
+    qapp,
+    gui_module,
+    tmp_path,
+    restored_process_state,
+):
+    source_db = tmp_path / "import.sqlite"
+    with sqlite3.connect(source_db) as conn:
+        conn.execute(gui_module.create_kunden_table_sql())
+        conn.execute(gui_module.create_anfragen_table_sql())
+        conn.execute("INSERT INTO Kunden (name) VALUES (?)", ("Importkunde",))
+
+    window = gui_module.Window()
+    try:
+        assert window.import_database(source_path=str(source_db))
+        assert window.database_import_status.text() == (
+            "Datenbank erfolgreich importiert: import.sqlite"
+        )
+
+        customers = [
+            window.customer_combo.itemText(index)
+            for index in range(window.customer_combo.count())
+        ]
+        assert customers == ["Importkunde"]
+
+        with sqlite3.connect(window.database_path) as conn:
+            assert conn.execute("SELECT name FROM Kunden").fetchall() == [
+                ("Importkunde",),
+            ]
+    finally:
+        window.conn.close()
+        window.close()
+        gui_module.XStream._stdout = None
+        gui_module.XStream._stderr = None
+
+
+@pytest.mark.gui
+def test_hdf5_location_is_persisted_between_windows(
+    qapp,
+    gui_module,
+    sample_lauchaecker_hdf5,
+    restored_process_state,
+):
+    first_window = gui_module.Window()
+    try:
+        first_window.settings_hdf5_line.setText(
+            str(sample_lauchaecker_hdf5.path)
+        )
+        output_folder = sample_lauchaecker_hdf5.path.parent / "Text Exports"
+        first_window.settings_output_folder_line.setText(str(output_folder))
+        assert first_window.save_settings()
+        assert json.loads(
+            first_window.settings_path.read_text(encoding="utf-8")
+        ) == {
+            "hdf5_file": str(sample_lauchaecker_hdf5.path),
+            "output_folder": str(output_folder),
+        }
+    finally:
+        first_window.conn.close()
+        first_window.close()
+
+    gui_module.lconf.hdf5_filename = "not-the-persisted-path.h5"
+    second_window = gui_module.Window()
+    try:
+        assert second_window.settings_hdf5_line.text() == str(
+            sample_lauchaecker_hdf5.path
+        )
+        assert second_window.hdf5_location == str(sample_lauchaecker_hdf5.path)
+        assert second_window.settings_output_folder_line.text() == str(
+            output_folder
+        )
+        assert second_window.output_folder == str(output_folder)
+    finally:
+        second_window.conn.close()
+        second_window.close()
         gui_module.XStream._stdout = None
         gui_module.XStream._stderr = None
 
@@ -137,9 +237,12 @@ def test_window_run_exports_selected_generated_hdf5_data(
 ):
     window = gui_module.Window()
     try:
-        window.working_dir = str(tmp_path)
-        window.working_dir_line.setText(str(tmp_path))
-        window.hdf5_line.setText(str(sample_lauchaecker_hdf5.path))
+        export_hdf5 = tmp_path / sample_lauchaecker_hdf5.path.name
+        export_root = tmp_path / "Text Exports"
+        shutil.copy2(sample_lauchaecker_hdf5.path, export_hdf5)
+        window.settings_hdf5_line.setText(str(export_hdf5))
+        window.settings_output_folder_line.setText(str(export_root))
+        assert window.save_settings()
         window.customer_combo.setCurrentText("Testkunde")
         window.cal_start.setSelectedDate(QtCore.QDate(
             sample_lauchaecker_hdf5.start_date.year,
@@ -161,7 +264,6 @@ def test_window_run_exports_selected_generated_hdf5_data(
         qapp.processEvents()
 
         console_text = window.console.toPlainText()
-        export_root = tmp_path / "Export"
         export_files = list(export_root.rglob("*.txt"))
         assert len(export_files) == 1, (
             f"Expected one export file in {export_root}, found "
