@@ -28,7 +28,10 @@ class HistoryMixin:
             os.path.dirname(os.path.abspath(__file__)),
             'anfragen_log.db',
         )
-        self.conn = sqlite3.connect(self.database_path)
+        if self.shadow_mode:
+            self.conn = sqlite3.connect(":memory:")
+        else:
+            self.conn = sqlite3.connect(self.database_path)
         cursor = self.conn.cursor()
         cursor.execute(create_kunden_table_sql())
         cursor.execute(create_anfragen_table_sql())

@@ -34,14 +34,18 @@ def _load_gui_module(monkeypatch):
 def _install_temp_database(monkeypatch, gui_module, db_path):
     def setup_database(self):
         self.database_path = str(db_path)
-        self.conn = sqlite3.connect(self.database_path)
+        if self.shadow_mode:
+            self.conn = sqlite3.connect(":memory:")
+        else:
+            self.conn = sqlite3.connect(self.database_path)
         cursor = self.conn.cursor()
         cursor.execute(gui_module.create_kunden_table_sql())
         cursor.execute(gui_module.create_anfragen_table_sql())
-        cursor.execute(
-            gui_module.insert_customer_query(),
-            ("Testkunde",),
-        )
+        if not self.shadow_mode:
+            cursor.execute(
+                gui_module.insert_customer_query(),
+                ("Testkunde",),
+            )
         self.conn.commit()
 
     monkeypatch.setattr(gui_module.Window, "setup_database", setup_database)
@@ -130,6 +134,7 @@ def test_window_starts_with_generated_hdf5_testdata(
         assert window.settings_output_folder_line.text() == str(
             sample_lauchaecker_hdf5.path.parent / "Export"
         )
+        assert not window.settings_shadow_mode_checkbox.isChecked()
         assert window.windowState() & QtCore.Qt.WindowMaximized
         assert not hasattr(window, "hdf5_line")
         assert not hasattr(window, "working_dir_line")
@@ -308,6 +313,7 @@ def test_hdf5_location_is_persisted_between_windows(
         ) == {
             "hdf5_file": str(sample_lauchaecker_hdf5.path),
             "output_folder": str(output_folder),
+            "shadow_mode": False,
         }
     finally:
         first_window.conn.close()
@@ -327,6 +333,67 @@ def test_hdf5_location_is_persisted_between_windows(
     finally:
         second_window.conn.close()
         second_window.close()
+        gui_module.XStream._stdout = None
+        gui_module.XStream._stderr = None
+
+
+@pytest.mark.gui
+def test_shadow_mode_is_persisted_between_windows(
+    qapp,
+    gui_module,
+    sample_lauchaecker_hdf5,
+    restored_process_state,
+):
+    first_window = gui_module.Window()
+    try:
+        first_window.settings_hdf5_line.setText(
+            str(sample_lauchaecker_hdf5.path)
+        )
+        first_window.settings_output_folder_line.setText(
+            str(sample_lauchaecker_hdf5.path.parent / "Export")
+        )
+        first_window.settings_shadow_mode_checkbox.setChecked(True)
+        assert first_window.save_settings()
+        assert json.loads(
+            first_window.settings_path.read_text(encoding="utf-8")
+        )["shadow_mode"] is True
+    finally:
+        first_window.conn.close()
+        first_window.close()
+
+    second_window = gui_module.Window()
+    try:
+        assert second_window.shadow_mode is True
+        assert second_window.settings_shadow_mode_checkbox.isChecked()
+        assert second_window.customer_combo.count() == 0
+    finally:
+        second_window.conn.close()
+        second_window.close()
+        gui_module.XStream._stdout = None
+        gui_module.XStream._stderr = None
+
+
+@pytest.mark.gui
+def test_shadow_mode_blocks_database_import(
+    qapp,
+    gui_module,
+    tmp_path,
+    restored_process_state,
+):
+    source_db = tmp_path / "import.sqlite"
+    with sqlite3.connect(source_db) as conn:
+        conn.execute(gui_module.create_kunden_table_sql())
+
+    window = gui_module.Window()
+    try:
+        window.shadow_mode = True
+        assert not window.import_database(source_path=str(source_db))
+        assert window.database_import_status.text() == (
+            "Shadow Modus ist aktiv: Datenbank wurde nicht importiert."
+        )
+    finally:
+        window.conn.close()
+        window.close()
         gui_module.XStream._stdout = None
         gui_module.XStream._stderr = None
 
@@ -401,6 +468,60 @@ def test_window_run_exports_selected_generated_hdf5_data(
         window.load_entry_to_ui(history_row)
         assert window.time_delta_input.text() == "60"
         assert window.time_delta_unit.currentText() == "Minuten"
+    finally:
+        window.conn.close()
+        window.close()
+        gui_module.XStream._stdout = None
+        gui_module.XStream._stderr = None
+
+
+@pytest.mark.gui
+def test_shadow_mode_run_exports_without_saving_request(
+    qapp,
+    gui_module,
+    sample_lauchaecker_hdf5,
+    tmp_path,
+    restored_process_state,
+):
+    window = gui_module.Window()
+    try:
+        export_hdf5 = tmp_path / "shadow_export_test.h5"
+        export_root = tmp_path / "Shadow Exports"
+        shutil.copy2(sample_lauchaecker_hdf5.path, export_hdf5)
+        window.settings_hdf5_line.setText(str(export_hdf5))
+        window.settings_output_folder_line.setText(str(export_root))
+        window.settings_shadow_mode_checkbox.setChecked(True)
+        assert window.save_settings()
+        window.customer_combo.setCurrentText("Shadowkunde")
+        window.cal_start.setSelectedDate(QtCore.QDate(
+            sample_lauchaecker_hdf5.start_date.year,
+            sample_lauchaecker_hdf5.start_date.month,
+            sample_lauchaecker_hdf5.start_date.day,
+        ))
+        window.cal_end.setSelectedDate(QtCore.QDate(
+            sample_lauchaecker_hdf5.end_date.year,
+            sample_lauchaecker_hdf5.end_date.month,
+            sample_lauchaecker_hdf5.end_date.day,
+        ))
+        window.date_changed()
+        window.transfer_list.set_selected_variables(
+            list(sample_lauchaecker_hdf5.variables)
+        )
+        qapp.processEvents()
+
+        window.run(save_to_db=True)
+        qapp.processEvents()
+
+        console_text = window.console.toPlainText()
+        shadow_export_root = export_root.parent / "Output_Shadow"
+        assert "Shadow Modus aktiv" in console_text
+        assert len(list(shadow_export_root.rglob("*.txt"))) == 1
+        assert not list(export_root.rglob("*.txt"))
+        assert window.conn.execute("SELECT COUNT(*) FROM Anfragen").fetchone() == (0,)
+        assert window.conn.execute(
+            "SELECT COUNT(*) FROM Kunden WHERE name = ?",
+            ("Shadowkunde",),
+        ).fetchone() == (0,)
     finally:
         window.conn.close()
         window.close()

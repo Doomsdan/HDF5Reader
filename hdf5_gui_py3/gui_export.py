@@ -3,6 +3,7 @@
 import datetime
 import os
 import traceback
+from pathlib import Path
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication
@@ -28,7 +29,12 @@ class ExportMixin:
                 self._prepare_export_path(kunde)
 
             if self.allesgut == True:
-                if save_to_db:
+                if save_to_db and self.shadow_mode:
+                    print(
+                        "Shadow Modus aktiv: Anfrage wird nicht in der "
+                        "Datenbank gespeichert."
+                    )
+                elif save_to_db:
                     self._save_request(kunde)
                 self._export_hdf5()
             else:
@@ -73,8 +79,11 @@ class ExportMixin:
         filename = f"{safe_kunde}_{time_str}.txt"
 
         try:
-            os.makedirs(self.output_folder, exist_ok=True)
-            self.out_dir = os.path.join(self.output_folder, filename)
+            export_folder = Path(self.output_folder)
+            if self.shadow_mode:
+                export_folder = export_folder.parent / "Output_Shadow"
+            os.makedirs(str(export_folder), exist_ok=True)
+            self.out_dir = str(export_folder / filename)
         except Exception as e:
             print("Fehler beim Erstellen des Export-Ordners:", e)
             self.allesgut = False
