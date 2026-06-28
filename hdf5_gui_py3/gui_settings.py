@@ -174,6 +174,12 @@ class SettingsMixin:
         return True
 
     def import_database(self, checked=False, source_path=None):
+        if self.shadow_mode:
+            self.database_import_status.setText(
+                "Shadow Modus ist aktiv: Datenbank wurde nicht importiert."
+            )
+            return False
+
         if source_path is None:
             source_path, _ = QFileDialog.getOpenFileName(
                 self,

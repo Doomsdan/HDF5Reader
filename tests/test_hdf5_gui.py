@@ -513,8 +513,10 @@ def test_shadow_mode_run_exports_without_saving_request(
         qapp.processEvents()
 
         console_text = window.console.toPlainText()
+        shadow_export_root = export_root.parent / "Output_Shadow"
         assert "Shadow Modus aktiv" in console_text
-        assert len(list(export_root.rglob("*.txt"))) == 1
+        assert len(list(shadow_export_root.rglob("*.txt"))) == 1
+        assert not list(export_root.rglob("*.txt"))
         assert window.conn.execute("SELECT COUNT(*) FROM Anfragen").fetchone() == (0,)
         assert window.conn.execute(
             "SELECT COUNT(*) FROM Kunden WHERE name = ?",
