@@ -14,6 +14,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import (
     QApplication,
     QCalendarWidget,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -45,6 +46,7 @@ __all__ = [
     "pyqtSignal",
     "QApplication",
     "QCalendarWidget",
+    "QCheckBox",
     "QComboBox",
     "QDialog",
     "QFileDialog",

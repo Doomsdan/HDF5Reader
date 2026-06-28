@@ -49,9 +49,9 @@ class Window(
         self.setWindowTitle('HDF5 GUI')
         self.resize(1200, 750)
         self.setWindowState(self.windowState() | QtCore.Qt.WindowMaximized)
+        self.load_settings()
         self.setup_database()
         self.set_style()
-        self.load_settings()
 
         self.current_kunde_filter = ""
         self.current_datum_filter = ""

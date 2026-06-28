@@ -28,7 +28,12 @@ class ExportMixin:
                 self._prepare_export_path(kunde)
 
             if self.allesgut == True:
-                if save_to_db:
+                if save_to_db and self.shadow_mode:
+                    print(
+                        "Shadow Modus aktiv: Anfrage wird nicht in der "
+                        "Datenbank gespeichert."
+                    )
+                elif save_to_db:
                     self._save_request(kunde)
                 self._export_hdf5()
             else:

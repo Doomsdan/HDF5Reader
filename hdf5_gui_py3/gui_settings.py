@@ -10,6 +10,7 @@ import tempfile
 from PyQt5.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
+    QCheckBox,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -48,6 +49,7 @@ class SettingsMixin:
             settings.get("output_folder")
             or Path(self.hdf5_location).parent / "Export"
         )
+        self.shadow_mode = bool(settings.get("shadow_mode", False))
         lconf.hdf5_filename = self.hdf5_location
 
     def settings_ui(self):
@@ -74,6 +76,15 @@ class SettingsMixin:
         output_layout.addWidget(self.settings_output_folder_line)
         output_layout.addWidget(self.settings_output_folder_browse_button)
         layout.addLayout(output_layout)
+
+        self.settings_shadow_mode_checkbox = QCheckBox(
+            "Shadow Modus aktivieren"
+        )
+        self.settings_shadow_mode_checkbox.setChecked(self.shadow_mode)
+        self.settings_shadow_mode_checkbox.setToolTip(
+            "Im Shadow Modus werden keine Daten in der Datenbank gespeichert."
+        )
+        layout.addWidget(self.settings_shadow_mode_checkbox)
 
         self.settings_save_button = QPushButton("Save Settings")
         self.settings_save_button.clicked.connect(self.save_settings)
@@ -121,6 +132,7 @@ class SettingsMixin:
     def save_settings(self, checked=False):
         hdf5_path = self.settings_hdf5_line.text().strip()
         output_folder = self.settings_output_folder_line.text().strip()
+        shadow_mode = self.settings_shadow_mode_checkbox.isChecked()
         if not hdf5_path:
             self.hdf5_settings_status.setText(
                 "Bitte eine HDF5-Datei angeben."
@@ -136,6 +148,7 @@ class SettingsMixin:
             self.settings_path.parent.mkdir(parents=True, exist_ok=True)
             self.app_settings["hdf5_file"] = hdf5_path
             self.app_settings["output_folder"] = output_folder
+            self.app_settings["shadow_mode"] = shadow_mode
             self.app_settings.pop("working_directory", None)
             with temp_path.open("w", encoding="utf-8") as settings_file:
                 json.dump(
@@ -155,6 +168,7 @@ class SettingsMixin:
 
         self.hdf5_location = hdf5_path
         self.output_folder = output_folder
+        self.shadow_mode = shadow_mode
         lconf.hdf5_filename = self.hdf5_location
         self.hdf5_settings_status.setText("Settings wurden gespeichert.")
         return True
